@@ -9,6 +9,7 @@ const password = ref("");
 
 onMounted(() => {
   authStore.initializeAuthStore();
+  authStore.getAllPlayers();
 });
 
 const startGame = () => {
@@ -71,6 +72,20 @@ const logOut = () => {
       </form>
     </div>
   </div>
+
+  <div v-if="authStore.playersList.length > 0" class="mt-5">
+    <h3>Jugadors disponibles</h3>
+    <ul class="list-group">
+      <li
+        v-for="player in authStore.playersList"
+        :key="player.id"
+        class="list-group-item"
+      >
+        {{ player.nickname }}
+      </li>
+    </ul>
+  </div>
+
 </template>
 
 <style scoped>

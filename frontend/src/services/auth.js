@@ -68,6 +68,9 @@ class AuthService {
 
     return instance;
   }
+  getAllPlayers() {
+    return this.getAxiosInstance().get("/api/v1/players/");
+  }
 }
 
 export default new AuthService();

@@ -6,7 +6,7 @@ from .models import Player, Game, Board, Vessel, BoardVessel, Shot
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = '__all__'
+        fields = ['username', 'email']
         # exclude = ('password',)
 
 
