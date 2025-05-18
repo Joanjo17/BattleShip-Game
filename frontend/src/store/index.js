@@ -30,28 +30,33 @@ export const useGameStore = defineStore("game", {
       return api
         .getGameState(gameId)
         .then((response) => {
-          response = JSON.parse(response); // this is a mock, in real case it will be axios response
-          console.log("response", response);
-          const gameState = response.data.gameState;
-          this.playerBoard = gameState.player1.board;
-          this.opponentBoard = gameState.player2.board;
-          this.playerPlacedShips = gameState.player1.placedShips;
-          this.opponentShips = gameState.player2.placedShips;
-          this.availableShips = gameState.player1.availableShips;
-          this.gamePhase = gameState.phase;
-          // this.gameStatus =
-          //   gameState.turn === "player1" ? "Your turn" : "Opponent's turn";
+          const gameData = response.data;
+          console.log("Datos completos del backend:", gameData);
+
+          const player = gameData.extended_status.player;
+          console.log("Player (extended_status):", gameData.extended_status?.player);
+
+          this.playerBoard = player.board;
+          this.playerPlacedShips = player.placedShips;
+          this.availableShips = player.availableShips;
+          this.gamePhase = gameData.phase;
+
           if (this.gamePhase === "playing") {
             this.gameStatus =
-              gameState.turn === "player1" ? "Your turn" : "Opponent's turn";
+              gameData.turn === player.username ? "Your turn" : "Opponent's turn";
           } else if (this.gamePhase === "placement") {
             this.gameStatus = "Place your ships";
           } else if (this.gamePhase === "gameOver") {
-            this.gameStatus = "Game Over - Winner " + gameState.winner;
+            this.gameStatus = "Game Over - Winner: " + (gameData.winner ?? "None");
           }
+
+          this.opponentBoard = this.createEmptyBoard();
+          this.opponentShips = [];
+          this.placeOpponentShips();
         })
         .catch((error) => {
           const message = error.response?.data?.detail || error.message;
+          console.error("Error al obtener el estado del juego:", message);
           throw new Error(message);
         });
     },
@@ -98,6 +103,7 @@ export const useGameStore = defineStore("game", {
       const shipList = [1, 2, 3, 4, 5];
       for (let type of shipList) {
         const ship = this.availableShips.find((s) => s.type === type);
+        if (!ship) continue; //Evita que falli si no hi ha cap ship
         let placed = false;
         while (!placed) {
           const row = Math.floor(Math.random() * 10);

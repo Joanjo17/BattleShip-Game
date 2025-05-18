@@ -7,15 +7,17 @@ from django.shortcuts import get_object_or_404
 from . import models
 from .models import Game, Player, Board, BoardVessel, Shot, Vessel
 from . import serializers
-from .serializers import PlayerSerializer, GameSerializer, BoardSerializer, BoardVesselSerializer, ShotSerializer, VesselSerializer
+from .serializers import UserSerializer, PlayerSerializer, GameSerializer, BoardSerializer, BoardVesselSerializer, ShotSerializer, VesselSerializer
 
 
-class UserViewSet(viewsets.ReadOnlyModelViewSet):
+class UserViewSet(viewsets.ModelViewSet):
     """
     This viewset automatically provides `list` and `retrieve` actions.
     """
     queryset = User.objects.all()
-    serializer_class = serializers.UserSerializer
+    serializer_class = UserSerializer
+    filter_backends = [filters.SearchFilter]
+    search_fields = ['username', 'email']
 
 
 class PlayerViewSet(viewsets.ModelViewSet):

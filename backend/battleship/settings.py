@@ -145,6 +145,7 @@ SPECTACULAR_SETTINGS = {
     # OTHER SETTINGS
 }
 
+'''
 REST_FRAMEWORK = {
     # Use Django's standard `django.contrib.auth` permissions,
     # or allow read-only access for unauthenticated users.
@@ -159,6 +160,7 @@ REST_FRAMEWORK = {
     ),
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
 }
+'''
 
 CORS_URLS_REGEX = r"^/api/.*$"
 CORS_ALLOW_ALL_ORIGINS = True

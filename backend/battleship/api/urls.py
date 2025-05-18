@@ -7,6 +7,7 @@ from .views import PlayerViewSet, GameViewSet, BoardViewSet, BoardVesselViewSet,
 router = DefaultRouter()
 
 router.register(r'user', views.UserViewSet, basename='user')
+
 router.register(r'players', PlayerViewSet)
 router.register(r'games', GameViewSet)
 
