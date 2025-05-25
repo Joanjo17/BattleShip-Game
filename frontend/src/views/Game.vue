@@ -27,9 +27,9 @@ const authStore = useAuthStore();
 
 onMounted(() => {
   // To start a new game, uncomment the line below
-  // store.startNewGame();
+  //store.startNewGame();
   // To fetch the game state, uncomment the line below
-   store.getGameState("1");
+   store.getGameState("35");
   // getUsers();
 });
 

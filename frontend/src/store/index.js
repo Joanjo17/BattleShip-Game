@@ -3,14 +3,16 @@ import api from "../services/api";
 
 export const useGameStore = defineStore("game", {
   state: () => ({
-    gamePhase: "placement",
-    gameStatus: "Place your ships",
+    gamePhase: "waiting",
+    gameStatus: "Waiting for players",
     playerBoard: [],
     opponentBoard: [],
     playerPlacedShips: [],
     opponentShips: [],
     availableShips: [],
     selectedShip: null,
+    playersInGame: [],
+    currentGameId: null,
   }),
 
   actions: {
@@ -25,46 +27,71 @@ export const useGameStore = defineStore("game", {
           throw new Error(message);
         });
     },
+    async loadPlayersInGame(gameId) {
+      try {
+        const response = await api.getPlayersInGame(gameId);
+        console.log("Jugadores en la partida:", response.data);
+        this.playersInGame = response.data;
+      } catch (error) {
+        const message = error.response?.data?.detail || error.message;
+        console.error("Error cargando jugadores de la partida:", message);
+      }
+    },
+
 
     async getGameState(gameId) {
-      return api
-        .getGameState(gameId)
-        .then((response) => {
-          const gameData = response.data;
-          console.log("Datos completos del backend:", gameData);
+      try {
+        this.currentGameId = gameId;
+        const response = await api.getGameState(gameId);
+        const gameData = response.data;
 
-          const player = gameData.extended_status.player;
-          console.log("Player (extended_status):", gameData.extended_status?.player);
+        console.log("Datos completos del backend:", gameData);
+        const player = gameData.extended_status.player;
+        console.log("Player (extended_status):", player);
 
-          this.playerBoard = player.board;
-          this.playerPlacedShips = player.placedShips;
-          this.availableShips = player.availableShips;
-          this.gamePhase = gameData.phase;
+        this.playerBoard = player.board;
+        this.playerPlacedShips = player.placedShips;
+        this.availableShips = player.availableShips;
+        const isPrepared = player.prepared;
+        this.gamePhase = gameData.phase;
 
-          if (this.gamePhase === "playing") {
-            this.gameStatus =
-              gameData.turn === player.username ? "Your turn" : "Opponent's turn";
-          } else if (this.gamePhase === "placement") {
-            this.gameStatus = "Place your ships";
-          } else if (this.gamePhase === "gameOver") {
-            this.gameStatus = "Game Over - Winner: " + (gameData.winner ?? "None");
-          }
+        if (isPrepared && this.gamePhase !== "playing") {
+          console.log("⏳ Esperando que el oponente esté listo...");
+          setTimeout(() => this.getGameState(this.currentGameId), 1000);
+        }
 
-          this.opponentBoard = this.createEmptyBoard();
-          this.opponentShips = [];
-          this.placeOpponentShips();
-        })
-        .catch((error) => {
-          const message = error.response?.data?.detail || error.message;
-          console.error("Error al obtener el estado del juego:", message);
-          throw new Error(message);
-        });
+        console.log("fase del juego:", this.gamePhase); //debug
+        if (this.gamePhase === "playing") {
+          this.gameStatus =
+            gameData.turn === player.id ? "Your turn" : "Opponent's turn";
+            console.log("Turno actual:", gameData.turn); //debug
+        } else if (this.gamePhase === "placement") {
+          this.gameStatus = "Place your ships";
+        } else if (this.gamePhase === "gameOver") {
+          this.gameStatus =
+            "Game Over - Winner: " + (gameData.winner ?? "None");
+        }
+
+        //this.opponentBoard = this.createEmptyBoard();
+        //this.opponentShips = [];
+        //this.placeOpponentShips();
+
+        await this.loadPlayersInGame(gameId);
+
+
+      } catch (error) {
+        const message = error.response?.data?.detail || error.message;
+        console.error("Error al obtener el estado del juego:", message);
+        throw new Error(message);
+      }
     },
+
     createEmptyBoard() {
       return Array(10)
         .fill()
         .map(() => Array(10).fill(0));
     },
+
 
     async startNewGame() {
       this.gamePhase = "placement";
@@ -74,9 +101,89 @@ export const useGameStore = defineStore("game", {
       this.playerPlacedShips = [];
       this.opponentShips = [];
       this.selectedShip = null;
-      this.availableShips = await api.getAvailableShips(); // TODO check with axios on how to avoid await.
 
-      this.placeOpponentShips();
+      try {
+        // Crear partida
+        const gameResponse = await api.createGame({
+          width: 10,
+          height: 10,
+          multiplayer: false,
+        });
+
+        const gameId = gameResponse.data.id;
+        this.currentGameId = gameId;
+
+        console.log("Partida creada con ID:", gameId);
+        // Nos aseguramos de que los jugadores están cargados antes de seguir
+        await this.loadPlayersInGame(gameId);
+
+        // Cargar barcos reales del backend
+        const vesselsResponse = await api.getAvailableShips();
+        this.availableShips = vesselsResponse.data.map((v) => ({
+          type: v.id,
+          size: v.size,
+          isVertical: true,
+        }));
+
+        //Función que guarda los barcos del bot
+        await this.placeAndSaveOpponentShips();
+        //Refrescar el estado
+        await this.getGameState(gameId);
+      } catch (error) {
+        const message = error.response?.data?.detail || error.message;
+        console.error("Error al crear una nueva partida:", message);
+        console.error("Detalles:", error.response?.data);
+      }
+    },
+    async placeAndSaveOpponentShips() {
+      console.log("⛴️ Colocando barcos del bot y guardando en el backend...");
+      const cpuPlayer = this.playersInGame.find(p => p.nickname === "cpu");
+      if (!cpuPlayer) {
+        console.warn("No se encontró el jugador CPU.");
+        return;
+      }
+      console.log("Se encontró el jugador CPU:", cpuPlayer);
+
+      const shipList = [1, 2, 3, 4, 5];
+
+      for (let type of shipList) {
+        const ship = this.availableShips.find((s) => s.type === type);
+        if (!ship) continue;
+
+        let placed = false;
+        while (!placed) {
+          const row = Math.floor(Math.random() * 10);
+          const col = Math.floor(Math.random() * 10);
+          const isVertical = Math.random() > 0.5;
+
+          if (this.isValidPlacement(this.opponentBoard, row, col, ship.size, isVertical)) {
+            this.placeShip(this.opponentBoard, row, col, ship.size, isVertical, ship.type);
+
+            const rf = isVertical ? row + ship.size - 1 : row;
+            const cf = isVertical ? col : col + ship.size - 1;
+
+            try {
+              await api.placeVessel(this.currentGameId, cpuPlayer.id, {
+                ri: row,
+                ci: col,
+                rf: rf,
+                cf: cf,
+                vessel: ship.type,
+              });
+            } catch (e) {
+              console.error(`Error guardando barco ${type} del CPU`, e.message);
+            }
+
+            this.opponentShips.push({
+              ...ship,
+              isVertical,
+              position: { row, col },
+            });
+
+            placed = true;
+          }
+        }
+      }
     },
 
     placeShip(board, row, col, size, isVertical, type) {
@@ -99,44 +206,6 @@ export const useGameStore = defineStore("game", {
       return true;
     },
 
-    placeOpponentShips() {
-      const shipList = [1, 2, 3, 4, 5];
-      for (let type of shipList) {
-        const ship = this.availableShips.find((s) => s.type === type);
-        if (!ship) continue; //Evita que falli si no hi ha cap ship
-        let placed = false;
-        while (!placed) {
-          const row = Math.floor(Math.random() * 10);
-          const col = Math.floor(Math.random() * 10);
-          const isVertical = Math.random() > 0.5;
-          if (
-            this.isValidPlacement(
-              this.opponentBoard,
-              row,
-              col,
-              ship.size,
-              isVertical
-            )
-          ) {
-            this.placeShip(
-              this.opponentBoard,
-              row,
-              col,
-              ship.size,
-              isVertical,
-              ship.type
-            );
-            this.opponentShips.push({
-              ...ship,
-              isVertical,
-              position: { row, col },
-            });
-            placed = true;
-          }
-        }
-      }
-    },
-
     selectShip(ship) {
       this.selectedShip = { ...ship };
     },
@@ -147,7 +216,7 @@ export const useGameStore = defineStore("game", {
       }
     },
 
-    handlePlayerBoardClick(row, col) {
+    async handlePlayerBoardClick(row, col) {
       if (this.gamePhase !== "placement" || !this.selectedShip) return;
 
       const ship = this.selectedShip;
@@ -162,6 +231,7 @@ export const useGameStore = defineStore("game", {
       )
         return;
 
+      // Colocar en el tablero local
       this.placeShip(
         this.playerBoard,
         row,
@@ -173,14 +243,35 @@ export const useGameStore = defineStore("game", {
 
       this.playerPlacedShips.push({ ...ship, position: { row, col } });
 
+      // Enviar al backend
+      const player = this.playersInGame[0]; // asumimos que el jugador local está primero
+      const gameId = this.currentGameId;
+      const rf = ship.isVertical ? row + ship.size - 1 : row;
+      const cf = ship.isVertical ? col : col + ship.size - 1;
+
+      try {
+        await api.placeVessel(gameId, player.id, {
+          ri: row,
+          ci: col,
+          rf: rf,
+          cf: cf,
+          vessel: ship.type,
+        });
+        console.log("Barco colocado en backend");
+      } catch (error) {
+        console.error("Error al colocar el barco en el backend:", error.message);
+      }
+
+      // Actualizar estado local
       this.availableShips = this.availableShips.filter(
         (s) => s.type !== ship.type
       );
       this.selectedShip = null;
 
       if (this.availableShips.length === 0) {
-        this.gamePhase = "playing";
-        this.gameStatus = "Your turn";
+        //this.gamePhase = "playing";
+        //this.gameStatus = "Your turn";
+        await this.getGameState(this.currentGameId);
       }
     },
 

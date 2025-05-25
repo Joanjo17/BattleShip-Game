@@ -1,5 +1,6 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
+from rest_framework_nested.routers import NestedSimpleRouter
 from . import views
 from .views import PlayerViewSet, GameViewSet, BoardViewSet, BoardVesselViewSet, VesselViewSet, ShotViewSet
 
@@ -11,12 +12,35 @@ router.register(r'user', views.UserViewSet, basename='user')
 router.register(r'players', PlayerViewSet)
 router.register(r'games', GameViewSet)
 
-router.register(r'boards', BoardViewSet)
+# /games/{game_id}/players/
+players_router = NestedSimpleRouter(router, r'games', lookup='game')
+players_router.register(r'players', PlayerViewSet, basename='game-players')
+
+# /games/{game_id}/players/{player_id}/vessels/
+vessels_router = NestedSimpleRouter(players_router, r'players', lookup='player')
+vessels_router.register(r'vessels', BoardVesselViewSet, basename='game-player-vessels')
+
+
+# router.register(r'boards', BoardViewSet)
+
+# En urls.py:
+boards_router = NestedSimpleRouter(players_router, r'players', lookup='player')
+boards_router.register(r'boards', BoardViewSet, basename='game-player-boards')
+
 router.register(r'vessels', VesselViewSet)
 
-router.register(r'board-vessels', BoardVesselViewSet)
-router.register(r'shots', ShotViewSet)
+#router.register(r'board-vessels', BoardVesselViewSet)
+#router.register(r'shots', ShotViewSet)
+
+# En urls.py:
+shots_router = NestedSimpleRouter(players_router, r'players', lookup='player')
+shots_router.register(r'shots', ShotViewSet, basename='game-player-shots')
+
 
 urlpatterns = [
     path("", include(router.urls)),
+    path("", include(players_router.urls)),
+    path("", include(vessels_router.urls)),
+    path("", include(shots_router.urls)),
+    path("", include(boards_router.urls)),
 ]
