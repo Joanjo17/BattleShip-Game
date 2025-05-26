@@ -33,6 +33,7 @@ class GameSerializer(serializers.ModelSerializer):
         owner = obj.owner
         players = list(obj.players.all())
         cpu_player = next((p for p in players if p != owner), None)
+        print(f"🕹️ Jugadores en la partida: {', '.join(p.nickname for p in players)}")
 
         def get_player_status(player):
             board = Board.objects.filter(game=obj, player=player).first()
@@ -57,7 +58,12 @@ class GameSerializer(serializers.ModelSerializer):
                 for i in range(ship_size):
                     r = bv.ri + i if is_vertical else bv.ri
                     c = bv.ci if is_vertical else bv.ci + i
-                    board_matrix[r][c] = ship_type
+
+                    if 0 <= r < height and 0 <= c < width:
+                        board_matrix[r][c] = ship_type
+                    else:
+                        print(f"Para el jugador: {player.nickname}")
+                        print(f"❌ Posición fuera de límites: r={r}, c={c}, size={ship_size}, board={height}x{width}")
 
             all_vessels = Vessel.objects.all()
             placed_types = {s["type"] for s in placed_ships}
@@ -107,3 +113,10 @@ class ShotSerializer(serializers.ModelSerializer):
     class Meta:
         model = Shot
         fields = '__all__'
+        extra_kwargs = {
+            'result': {'required': False},
+            'board': {'required': False},
+            'player': {'required': False},
+            'game': {'required': False},
+            'impact': {'required': False},
+        }

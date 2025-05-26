@@ -23,5 +23,8 @@ export default {
   placeVessel(gameId, playerId, vesselData) {
     console.log(gameId, playerId, vesselData);
     return axiosInstance.post(`/api/v1/games/${gameId}/players/${playerId}/vessels/`, vesselData);
+  },
+  fireShot(gameId, playerId, payload) {
+    return axiosInstance.post(`/api/v1/games/${gameId}/players/${playerId}/shots/`, payload);
   }
 };

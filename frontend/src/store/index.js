@@ -47,12 +47,19 @@ export const useGameStore = defineStore("game", {
 
         console.log("Datos completos del backend:", gameData);
         const player = gameData.extended_status.player;
+        const opponent = gameData.extended_status.opponent;
         console.log("Player (extended_status):", player);
+        console.log("Opponent (extended_status):", opponent);
 
+        // PLAYER
         this.playerBoard = player.board;
         this.playerPlacedShips = player.placedShips;
         this.availableShips = player.availableShips;
         const isPrepared = player.prepared;
+
+        // OPPONENT
+        this.opponentBoard = opponent?.board || this.createEmptyBoard();
+        this.opponentShips = opponent?.placedShips || [];
         this.gamePhase = gameData.phase;
 
         if (isPrepared && this.gamePhase !== "playing") {
@@ -60,7 +67,7 @@ export const useGameStore = defineStore("game", {
           setTimeout(() => this.getGameState(this.currentGameId), 1000);
         }
 
-        console.log("fase del juego:", this.gamePhase); //debug
+        console.log("Fase del juego:", this.gamePhase); //debug
         if (this.gamePhase === "playing") {
           this.gameStatus =
             gameData.turn === player.id ? "Your turn" : "Opponent's turn";
@@ -72,12 +79,8 @@ export const useGameStore = defineStore("game", {
             "Game Over - Winner: " + (gameData.winner ?? "None");
         }
 
-        //this.opponentBoard = this.createEmptyBoard();
-        //this.opponentShips = [];
-        //this.placeOpponentShips();
 
         await this.loadPlayersInGame(gameId);
-
 
       } catch (error) {
         const message = error.response?.data?.detail || error.message;
@@ -173,12 +176,13 @@ export const useGameStore = defineStore("game", {
             } catch (e) {
               console.error(`Error guardando barco ${type} del CPU`, e.message);
             }
-
+            /**
             this.opponentShips.push({
               ...ship,
               isVertical,
               position: { row, col },
             });
+             */
 
             placed = true;
           }
@@ -189,18 +193,18 @@ export const useGameStore = defineStore("game", {
     placeShip(board, row, col, size, isVertical, type) {
       for (let i = 0; i < size; i++) {
         const r = isVertical ? row + i : row;
-        const c = isVertical ? col : col - i;
+        const c = isVertical ? col : col + i;
         board[r][c] = type;
       }
     },
 
     isValidPlacement(board, row, col, size, isVertical) {
-      const inBounds = isVertical ? row + size <= 10 : col + 1 - size >= 0;
+      const inBounds = isVertical ? row + size <= 10 : col + size <= 10;
       if (!inBounds) return false;
 
       for (let i = 0; i < size; i++) {
         const r = isVertical ? row + i : row;
-        const c = isVertical ? col : col - i;
+        const c = isVertical ? col : col + i;
         if (board[r][c] !== 0) return false;
       }
       return true;
@@ -271,12 +275,17 @@ export const useGameStore = defineStore("game", {
       if (this.availableShips.length === 0) {
         //this.gamePhase = "playing";
         //this.gameStatus = "Your turn";
-        await this.getGameState(this.currentGameId);
+        setTimeout(() => this.getGameState(this.currentGameId), 500);
       }
     },
 
-    handleOpponentBoardClick(row, col) {
+    async handleOpponentBoardClick(row, col) {
       if (this.gamePhase !== "playing") return;
+      // Validación básica de límites (ya que no lo haces en el backend)
+      if (row < 0 || row >= 10 || col < 0 || col >= 10) {
+        this.gameStatus = "Coordenadas fuera de los límites del tablero.";
+        return;
+      }
       if (this.opponentBoard[row][col] < 0) {
         this.gameStatus = "Already hit!";
         return;
@@ -284,25 +293,44 @@ export const useGameStore = defineStore("game", {
         this.gameStatus = "Already missed!";
         return;
       }
-      // const isHit = api.checkHit(row, col);
-      var isHit = false;
-      if (
-        this.opponentBoard[row][col] > 0 &&
-        this.opponentBoard[row][col] < 10
-      ) {
-        isHit = true;
+
+      const player = this.playersInGame.find(p => p.nickname !== "cpu");
+      const gameId = this.currentGameId;
+      try {
+        console.log("🔫 Disparando a:", row, col);
+        const response = await api.fireShot(gameId, player.id, { row, col });
+        const result = response.data.result;
+
+
+        if (result === 1) {
+          this.opponentBoard[row][col] = -this.opponentBoard[row][col];
+          this.gameStatus = "Hit!";
+        } else {
+          this.opponentBoard[row][col] = 11;
+          this.gameStatus = "Miss!";
+        }
+
+        // Esperar turno del oponente
+        setTimeout(this.opponentTurn, 1000);
+      } catch (error) {
+        console.error("Error al disparar:", error.response?.data); // <-- Agrega esto
+        const msg = error.response?.data?.detail || JSON.stringify(error.response?.data) || error.message;
+        this.gameStatus = msg;
+      }
+    },
+    async opponentTurn() {
+      await this.getGameState(this.currentGameId);
+      if (this.gamePhase === "gameOver") {
+        console.log("🏁 La partida ha terminado. ¡Has perdido!");
       }
 
-      this.opponentBoard[row][col] = isHit ? -this.opponentBoard[row][col] : 11;
-      this.gameStatus = isHit ? "Hit!" : "Miss!";
+      const cpuPlayer = this.playersInGame.find(p => p.nickname === "cpu");
+      if (!cpuPlayer) {
+        console.warn("No se encontró el jugador CPU.");
+        return;
+      }
 
-      setTimeout(this.opponentTurn, 1000);
-    },
-
-    opponentTurn() {
-      let row,
-        col,
-        valid = false;
+      let row, col, valid = false;
       while (!valid) {
         row = Math.floor(Math.random() * 10);
         col = Math.floor(Math.random() * 10);
@@ -310,10 +338,23 @@ export const useGameStore = defineStore("game", {
           this.playerBoard[row][col] >= 0 && this.playerBoard[row][col] < 10;
       }
 
-      const isHit =
-        this.playerBoard[row][col] > 0 && this.playerBoard[row][col] < 10;
-      this.playerBoard[row][col] = isHit ? -this.playerBoard[row][col] : 11;
-      this.gameStatus = "Your turn";
-    },
+      try {
+        const response = await api.fireShot(this.currentGameId, cpuPlayer.id, { row, col });
+        const result = response.data.result;
+
+        if (result === 1) {
+          this.playerBoard[row][col] = -this.playerBoard[row][col];
+          this.gameStatus = "CPU hit your ship! - Your turn";
+        } else {
+          this.playerBoard[row][col] = 11;
+          this.gameStatus = "Your turn";
+        }
+
+      } catch (error) {
+        const msg = error.response?.data?.detail || error.message;
+        console.error("Error en turno del CPU:", msg);
+        this.gameStatus = msg;
+      }
+    }
   },
 });

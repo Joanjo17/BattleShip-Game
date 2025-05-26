@@ -37,6 +37,13 @@ class PlayerViewSet(viewsets.ModelViewSet):
         else:
             serializer.save() # fallback: creación general si no es nested
 
+    def get_queryset(self):
+        game_id = self.kwargs.get('game_pk')
+        if game_id:
+            return Player.objects.filter(games__id=game_id)
+        return Player.objects.all()
+
+
 class GameViewSet(viewsets.ModelViewSet):
     queryset = Game.objects.all()
     serializer_class = GameSerializer
@@ -131,7 +138,19 @@ class ShotViewSet(viewsets.ModelViewSet):
         player_id = self.kwargs.get('player_pk')
         return Shot.objects.filter(game_id=game_id, player_id=player_id)
 
+    def get_vessel_cells(self, vessel):
+        """Devuelve todas las celdas (tuplas) que ocupa un barco."""
+        cells = []
+        if vessel.ri == vessel.rf:  # Horizontal
+            for col in range(vessel.ci, vessel.cf + 1):
+                cells.append((vessel.ri, col))
+        else:  # Vertical
+            for row in range(vessel.ri, vessel.rf + 1):
+                cells.append((row, vessel.ci))
+        return cells
+
     def perform_create(self, serializer):
+        print("ShotViewSet | 🔫 Procesando disparo...")
         game_id = self.kwargs.get('game_pk')
         player_id = self.kwargs.get('player_pk')
         game = get_object_or_404(Game, pk=game_id)
@@ -142,6 +161,12 @@ class ShotViewSet(viewsets.ModelViewSet):
 
         row = self.request.data.get('row')
         col = self.request.data.get('col')
+        try:
+            row = int(row)
+            col = int(col)
+        except (TypeError, ValueError):
+            raise ValidationError("Coordenadas inválidas.")
+
         if row is None or col is None:
             raise ValidationError("Debes proporcionar 'row' y 'col'.")
 
@@ -150,43 +175,53 @@ class ShotViewSet(viewsets.ModelViewSet):
         if not opponent_board:
             raise ValidationError("No se encontró el tablero del oponente.")
 
-        # Verificar si ya se disparó en esa casilla
+        print("📨 Data recibida para disparo:", self.request.data)
+        print("📨 Jugador:", player.id, "Tablero del oponente:", opponent_board.id)
+
         if Shot.objects.filter(board=opponent_board, row=row, col=col).exists():
             raise ValidationError("Ya se disparó en esta celda.")
 
-        # Comprobar si impacta en un barco
-        impact = BoardVessel.objects.filter(
-            board=opponent_board,
-            ri__lte=row, rf__gte=row,
-            ci__lte=col, cf__gte=col,
-            alive=True
-        ).first()
+        # Buscar si alguna celda de un barco activo coincide
+        vessels = BoardVessel.objects.filter(board=opponent_board, alive=True)
+        hit_vessel = None
+        for vessel in vessels:
+            if (row, col) in self.get_vessel_cells(vessel):
+                hit_vessel = vessel
+                break
 
-        result = 1 if impact else 0
-
-        if impact:
-            impact.alive = False
-            impact.save()
+        result = 1 if hit_vessel else 0
 
         # Guardar el disparo
-        serializer.save(
+        shot = serializer.save(
             game=game,
             player=player,
             board=opponent_board,
             row=row,
             col=col,
             result=result,
-            impact=impact if impact else None,
+            impact=hit_vessel if hit_vessel else None,
         )
 
-        # Comprobar si se ganó la partida
+        # Si se ha impactado, verificar si se ha hundido completamente
+        if hit_vessel:
+            vessel_cells = self.get_vessel_cells(hit_vessel)
+            impacted_cells = Shot.objects.filter(
+                board=opponent_board,
+                impact=hit_vessel
+            ).values_list('row', 'col')
+
+            if all(cell in impacted_cells for cell in vessel_cells):
+                hit_vessel.alive = False
+                hit_vessel.save()
+                print(f"🚢 Barco {hit_vessel.id} hundido.")
+
+        # Comprobar si ya no quedan barcos vivos
         remaining = BoardVessel.objects.filter(board=opponent_board, alive=True).count()
         if remaining == 0:
             game.phase = Game.PHASE_GAMEOVER
             game.winner = player
             print(f"🏁 ¡Jugador {player.nickname} ha ganado la partida {game.id}!")
         else:
-            # Cambiar el turno
             next_player = game.players.exclude(pk=player.id).first()
             game.turn = next_player
             print(f"🔁 Turno cambiado a {next_player.nickname} en la partida {game.id}")
