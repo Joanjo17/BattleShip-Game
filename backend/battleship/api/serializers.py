@@ -6,8 +6,17 @@ from .models import Player, Game, Board, Vessel, BoardVessel, Shot
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['username', 'email']
+        fields = ['username', 'email', 'password']
+        extra_kwargs = {
+            'password': {'write_only': True}  # La contraseña solo se usará para entrada (no se mostrará al serializar)
+        }
         # exclude = ('password',)
+
+    def create(self, validated_data):
+        # Cuando se llama a serializer.save(), este se ejecuta en registros nuevos
+        # En lugar de usar `User(**validated_data)` + `set_password()`, usamos:
+        return User.objects.create_user(**validated_data)
+        # Esto se encarga de: validar, hashear contraseña, y aplicar configuraciones por defecto como is_active=True
 
 
 class PlayerSerializer(serializers.ModelSerializer):
@@ -36,7 +45,9 @@ class GameSerializer(serializers.ModelSerializer):
 
         def get_player_status(player):
             board = Board.objects.filter(game=obj, player=player).first()
+            print(f"📦 Board obtenido para player {player.nickname} (ID {player.id}) en game {obj.id}: Board ID {board.id if board else 'None'}")
             vessels = BoardVessel.objects.filter(board=board).select_related("vessel")
+            print(f"🚢 Barcos encontrados en Board {board if board else 'None'}: {[v.vessel.id for v in vessels]}")
             width, height = obj.width, obj.height
             board_matrix = [[0 for _ in range(width)] for _ in range(height)]
             placed_ships = []

@@ -1,6 +1,7 @@
-from rest_framework import viewsets, filters, status
+from rest_framework import viewsets, filters, status, permissions
 from django.contrib.auth.models import User
 from rest_framework.exceptions import ValidationError
+from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
 
@@ -16,8 +17,17 @@ class UserViewSet(viewsets.ModelViewSet):
     """
     queryset = User.objects.all()
     serializer_class = UserSerializer
-    filter_backends = [filters.SearchFilter]
+    filter_backends = [filters.SearchFilter] # Permite búsquedas en la lista de usuarios
     search_fields = ['username', 'email']
+    permission_classes = [permissions.IsAdminUser]
+    # Por defecto, SOLO los administradores pueden acceder a estas vistas (GET, PUT, DELETE, etc.)
+
+    def get_permissions(self):
+        if self.action == 'create': # Si se trata de un POST (registro de usuario), permitimos acceso a cualquiera
+            return [AllowAny()]
+
+        # Para lo demás, se requiere que el usuario sea administrador
+        return [IsAdminUser()]
 
 
 class PlayerViewSet(viewsets.ModelViewSet):
@@ -52,7 +62,8 @@ class GameViewSet(viewsets.ModelViewSet):
     ordering_fields = ['id']
 
     def perform_create(self, serializer):
-        player = get_object_or_404(Player, user=User.objects.first())  # Sustituir con request.user si procede
+        #player = get_object_or_404(Player, user=User.objects.first())  Sustituir con request.user si procede
+        player = get_object_or_404(Player, user=self.request.user)
         game = serializer.save(owner=player, phase=Game.PHASE_PLACEMENT, turn=player)
         game.players.add(player)
         Board.objects.create(game=game, player=player)

@@ -1,4 +1,5 @@
 import { defineStore } from "pinia";
+import { useAuthStore } from '../store/authStore.js';
 import api from "../services/api";
 
 export const useGameStore = defineStore("game", {
@@ -72,6 +73,7 @@ export const useGameStore = defineStore("game", {
         if (this.gamePhase === "gameOver") {
           const winnerPlayer = this.playersInGame.find(p => p.id === gameData.winner);
           this.gameStatus = "Game Over - Winner: " + (winnerPlayer?.nickname || "Desconocido");
+          console.log("  🏁 Ganador:", winnerPlayer ?? "Nadie");
           return;
         }
 
@@ -237,6 +239,7 @@ export const useGameStore = defineStore("game", {
       if (this.gamePhase !== "placement" || !this.selectedShip) return;
 
       const ship = this.selectedShip;
+      const authStore = useAuthStore();
       if (
         !this.isValidPlacement(
           this.playerBoard,
@@ -261,7 +264,11 @@ export const useGameStore = defineStore("game", {
       this.playerPlacedShips.push({ ...ship, position: { row, col } });
 
       // Enviar al backend
-      const player = this.playersInGame[0]; // asumimos que el jugador local está primero
+      const player = this.playersInGame.find(p => p.nickname === authStore.username);
+      if (!player) {
+        console.error("Jugador no encontrado en playersInGame con nickname:", authStore.username);
+        return;
+      }
       const gameId = this.currentGameId;
       const { rf, cf } = this.getShipEndCoords(row, col, ship.size, ship.isVertical);
       try {

@@ -1,4 +1,5 @@
 import AuthService from "@/services/auth.js";
+
 const axiosInstance = AuthService.getAxiosInstance();
 
 export default {
@@ -21,7 +22,7 @@ export default {
     return axiosInstance.get(`/api/v1/games/${gameId}/players/`);
   },
   placeVessel(gameId, playerId, vesselData) {
-    console.log(gameId, playerId, vesselData);
+    console.log(" Placing vessel: Game ID:"+ gameId+ "Player ID: "+ playerId+ "Vessel Data: "+ JSON.stringify(vesselData));
     return axiosInstance.post(`/api/v1/games/${gameId}/players/${playerId}/vessels/`, vesselData);
   },
   fireShot(gameId, playerId, payload) {
