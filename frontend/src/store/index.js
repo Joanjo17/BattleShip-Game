@@ -45,6 +45,7 @@ export const useGameStore = defineStore("game", {
     async getGameState(gameId) {
       try {
         this.currentGameId = gameId;
+        localStorage.setItem("currentGameId", gameId);
         const response = await api.getGameState(gameId);
         const gameData = response.data;
 
@@ -132,6 +133,7 @@ export const useGameStore = defineStore("game", {
 
         const gameId = gameResponse.data.id;
         this.currentGameId = gameId;
+        localStorage.setItem("currentGameId", gameId);
 
         console.log("Partida creada con ID:", gameId);
         // Nos aseguramos de que los jugadores están cargados antes de seguir
