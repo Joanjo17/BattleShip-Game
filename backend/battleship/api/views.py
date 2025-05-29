@@ -237,7 +237,7 @@ class ShotViewSet(viewsets.ModelViewSet):
             game.phase = Game.PHASE_GAMEOVER
             game.winner = player
             print(f"🏆 Partida terminada. Ganador: {player.nickname} (ID {player.id})")
-        elif(result == 0):
+        elif result == 0: # Solo si no ha habido impacto, cambiar turno
             next_player = game.players.exclude(pk=player.id).first()
             game.turn = next_player
             print(f"🔄 Próximo turno: Jugador {next_player.id} ({next_player.nickname})")

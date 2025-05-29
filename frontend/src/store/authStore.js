@@ -80,6 +80,7 @@ export const useAuthStore = defineStore("auth", {
       localStorage.removeItem("username");
       localStorage.removeItem("access");
       localStorage.removeItem("refresh");
+      localStorage.removeItem("currentGameId");
     },
 
     async getAllPlayers() {

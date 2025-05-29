@@ -25,12 +25,23 @@ const authStore = useAuthStore();
 //   console.log(user.value);
 // }
 
-onMounted(() => {
+onMounted( async () => {
   // To start a new game, uncomment the line below
-  store.startNewGame();
+   //store.startNewGame();
   // To fetch the game state, uncomment the line below
-  // store.getGameState("41");
+   //store.getGameState("76");
   // getUsers();
+  const savedGameId = localStorage.getItem("currentGameId");
+
+  if (savedGameId) {
+    try {
+      await store.getGameState(savedGameId);
+      console.log("🔁 Partida restaurada desde localStorage:", savedGameId);
+    } catch (error) {
+      console.error("❌ No se pudo restaurar la partida:", error.message);
+      localStorage.removeItem("currentGameId");
+    }
+  }
 });
 
 const onLogout = () => {
