@@ -365,42 +365,48 @@ export const useGameStore = defineStore("game", {
         return;
       }
 
-      let row, col, valid = false;
       console.log("🤖 TURNO DEL CPU");
       console.log("Fase actual:", this.gamePhase);
       console.log("Jugador CPU:", cpuPlayer);
       console.log("Es el turno del CPU:", this.turnId === cpuPlayer.id);
 
-      while (!valid) {
-        row = Math.floor(Math.random() * 10);
-        col = Math.floor(Math.random() * 10);
-        valid =
-          this.playerBoard[row][col] >= 0 && this.playerBoard[row][col] < 10;
-      }
+      let result = 1;
 
-      try {
-        const response = await api.fireShot(this.currentGameId, cpuPlayer.id, { row, col });
-        const result = response.data.result;
-        console.log(`🤖 Disparo del CPU en (${row}, ${col}) →`, result === 1 ? "Hit" : "Miss");
+      // El bucle se repite mientras el CPU acierte y no haya terminado el juego
+      while (result === 1 && this.gamePhase !== "gameOver" && this.turnId == cpuPlayer.id) {
+        let row, col, valid = false;
 
-        // 🔄 Actualizar estado tras disparar
-        await this.getGameState(this.currentGameId);
-
-        if (this.gamePhase === "gameOver") {
-          console.log("🏁 Partida finalizada tras disparo del CPU");
-          return
+        while (!valid) {
+          row = Math.floor(Math.random() * 10);
+          col = Math.floor(Math.random() * 10);
+          valid = this.playerBoard[row][col] >= 0 && this.playerBoard[row][col] < 10;
         }
 
-        if (result === 1) {
-          this.gameStatus = "CPU hit your ship! - Your turn";
-        } else {
-          this.gameStatus = "Your turn";
-        }
+        try {
+          const response = await api.fireShot(this.currentGameId, cpuPlayer.id, { row, col });
+          result = response.data.result;
+          //console.log(🤖 Disparo del CPU en (${row}, ${col}) →, result === 1 ? "Hit" : "Miss");
 
-      } catch (error) {
-        const msg = error.response?.data?.detail || error.message;
-        console.error("Error en turno del CPU:", msg);
-        this.gameStatus = msg;
+          // 🔄 Actualizar estado tras disparo
+          await this.getGameState(this.currentGameId);
+
+          if (this.gamePhase === "gameOver") {
+            console.log("🏁 Partida finalizada tras disparo del CPU");
+            return;
+          }
+
+          if (result === 1) {
+            this.gameStatus = "CPU hit your ship! - Again!";
+          } else {
+            this.gameStatus = "Your turn";
+          }
+
+        } catch (error) {
+          const msg = error.response?.data?.detail || error.message;
+          console.error("Error en turno del CPU:", msg);
+          this.gameStatus = msg;
+          break;
+        }
       }
     }
   },
