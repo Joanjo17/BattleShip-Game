@@ -29,7 +29,7 @@ onMounted(() => {
   // To start a new game, uncomment the line below
    //store.startNewGame();
   // To fetch the game state, uncomment the line below
-   store.getGameState("59");
+   //store.getGameState("59");
   // getUsers();
 });
 
