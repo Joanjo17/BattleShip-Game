@@ -134,7 +134,7 @@ const getShipImageStyle = (ship) => {
       width: "100%",
       height: "100%",
       objectFit: "contain",
-      transform: "rotate(90deg)",
+      transform: "rotate(270deg)",
       transformOrigin: "center",
     };
   } else {

@@ -33,7 +33,6 @@ class GameSerializer(serializers.ModelSerializer):
         owner = obj.owner
         players = list(obj.players.all())
         cpu_player = next((p for p in players if p != owner), None)
-        print(f"🕹️ Jugadores en la partida: {', '.join(p.nickname for p in players)}")
 
         def get_player_status(player):
             board = Board.objects.filter(game=obj, player=player).first()
@@ -42,6 +41,7 @@ class GameSerializer(serializers.ModelSerializer):
             board_matrix = [[0 for _ in range(width)] for _ in range(height)]
             placed_ships = []
 
+           # Añadir los barcos al tablero
             for bv in vessels:
                 ship_type = bv.vessel.id
                 ship_size = bv.vessel.size
@@ -58,12 +58,25 @@ class GameSerializer(serializers.ModelSerializer):
                 for i in range(ship_size):
                     r = bv.ri + i if is_vertical else bv.ri
                     c = bv.ci if is_vertical else bv.ci + i
-
-                    if 0 <= r < height and 0 <= c < width:
+                    try:
                         board_matrix[r][c] = ship_type
+                    except IndexError:
+                        # Esto solo pasa si se cuela un barco fuera por error
+                        print(f"Posición inválida en backend para {player.nickname}: ({r}, {c})")
+
+            # Añadir disparos al tablero
+            shots = Shot.objects.filter(board=board)
+            for shot in shots:
+                r, c = shot.row, shot.col
+                # Verificar que las coordenadas están dentro del tablero
+                # (por si acaso eh, lo hace el frontend ya)
+                if 0 <= r < height and 0 <= c < width:
+                    if shot.result == 1:
+                        # HIT: marcar con negativo del tipo de barco si hay impacto
+                        board_matrix[r][c] = -board_matrix[r][c]
                     else:
-                        print(f"Para el jugador: {player.nickname}")
-                        print(f"❌ Posición fuera de límites: r={r}, c={c}, size={ship_size}, board={height}x{width}")
+                        # Agua: marcar como 11
+                        board_matrix[r][c] = 11
 
             all_vessels = Vessel.objects.all()
             placed_types = {s["type"] for s in placed_ships}
@@ -114,9 +127,9 @@ class ShotSerializer(serializers.ModelSerializer):
         model = Shot
         fields = '__all__'
         extra_kwargs = {
-            'result': {'required': False},
+            'result': {'required': False},#indica si es un impacto o agua
             'board': {'required': False},
             'player': {'required': False},
             'game': {'required': False},
-            'impact': {'required': False},
+            'impact': {'required': False}, #identificar barco impactado
         }

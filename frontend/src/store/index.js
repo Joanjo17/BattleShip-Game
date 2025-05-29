@@ -10,9 +10,11 @@ export const useGameStore = defineStore("game", {
     playerPlacedShips: [],
     opponentShips: [],
     availableShips: [],
-    selectedShip: null,
+    selectedShip: -1, // ID del barco seleccionado para colocar
     playersInGame: [],
-    currentGameId: null,
+    currentGameId: -1, // ID de la partida actual
+    turnId: -1, // ID del jugador cuyo turno es
+    firing: false, // Indica si se está disparando
   }),
 
   actions: {
@@ -58,29 +60,42 @@ export const useGameStore = defineStore("game", {
         const isPrepared = player.prepared;
 
         // OPPONENT
-        this.opponentBoard = opponent?.board || this.createEmptyBoard();
-        this.opponentShips = opponent?.placedShips || [];
-        this.gamePhase = gameData.phase;
+        this.opponentBoard = opponent?.board;
+        this.opponentShips = opponent?.placedShips;
 
-        if (isPrepared && this.gamePhase !== "playing") {
+
+        this.gamePhase = gameData.phase;
+        this.turnId = gameData.turn;
+
+        await this.loadPlayersInGame(gameId);
+
+        if (this.gamePhase === "gameOver") {
+          const winnerPlayer = this.playersInGame.find(p => p.id === gameData.winner);
+          this.gameStatus = "Game Over - Winner: " + (winnerPlayer?.nickname || "Desconocido");
+          return;
+        }
+
+        if (this.gamePhase !== "playing" && isPrepared) {
           console.log("⏳ Esperando que el oponente esté listo...");
           setTimeout(() => this.getGameState(this.currentGameId), 1000);
         }
 
-        console.log("Fase del juego:", this.gamePhase); //debug
+        console.log("📊 Estado actual del juego:");
+        console.log("  ▶️ Fase:", gameData.phase);
+        console.log("  👤 Turno del jugador ID:", gameData.turn);
+        console.log("  🏁 Ganador (si hay):", gameData.winner);
+        console.log("  🤖 Jugador actual (local):", player.username, "| ID:", player.id);
+        console.log("  👥 Jugadores en la partida:", this.playersInGame.map(p => `${p.nickname} (${p.id})`).join(" - "));
+        console.log("  🏁 Ganador:", gameData.winner ?? "Nadie");
+
+
         if (this.gamePhase === "playing") {
           this.gameStatus =
             gameData.turn === player.id ? "Your turn" : "Opponent's turn";
             console.log("Turno actual:", gameData.turn); //debug
         } else if (this.gamePhase === "placement") {
           this.gameStatus = "Place your ships";
-        } else if (this.gamePhase === "gameOver") {
-          this.gameStatus =
-            "Game Over - Winner: " + (gameData.winner ?? "None");
         }
-
-
-        await this.loadPlayersInGame(gameId);
 
       } catch (error) {
         const message = error.response?.data?.detail || error.message;
@@ -129,7 +144,7 @@ export const useGameStore = defineStore("game", {
         }));
 
         //Función que guarda los barcos del bot
-        await this.placeAndSaveOpponentShips();
+        await this.placeOpponentShips();
         //Refrescar el estado
         await this.getGameState(gameId);
       } catch (error) {
@@ -138,7 +153,7 @@ export const useGameStore = defineStore("game", {
         console.error("Detalles:", error.response?.data);
       }
     },
-    async placeAndSaveOpponentShips() {
+    async placeOpponentShips() {
       console.log("⛴️ Colocando barcos del bot y guardando en el backend...");
       const cpuPlayer = this.playersInGame.find(p => p.nickname === "cpu");
       if (!cpuPlayer) {
@@ -162,8 +177,7 @@ export const useGameStore = defineStore("game", {
           if (this.isValidPlacement(this.opponentBoard, row, col, ship.size, isVertical)) {
             this.placeShip(this.opponentBoard, row, col, ship.size, isVertical, ship.type);
 
-            const rf = isVertical ? row + ship.size - 1 : row;
-            const cf = isVertical ? col : col + ship.size - 1;
+            const { rf, cf } = this.getShipEndCoords(row, col, ship.size, isVertical);
 
             try {
               await api.placeVessel(this.currentGameId, cpuPlayer.id, {
@@ -176,13 +190,6 @@ export const useGameStore = defineStore("game", {
             } catch (e) {
               console.error(`Error guardando barco ${type} del CPU`, e.message);
             }
-            /**
-            this.opponentShips.push({
-              ...ship,
-              isVertical,
-              position: { row, col },
-            });
-             */
 
             placed = true;
           }
@@ -219,6 +226,12 @@ export const useGameStore = defineStore("game", {
         this.selectedShip.isVertical = !this.selectedShip.isVertical;
       }
     },
+    getShipEndCoords(row, col, size, isVertical) {
+      return {
+        rf: isVertical ? row + size - 1 : row,
+        cf: isVertical ? col : col + size - 1
+      };
+    },
 
     async handlePlayerBoardClick(row, col) {
       if (this.gamePhase !== "placement" || !this.selectedShip) return;
@@ -250,9 +263,7 @@ export const useGameStore = defineStore("game", {
       // Enviar al backend
       const player = this.playersInGame[0]; // asumimos que el jugador local está primero
       const gameId = this.currentGameId;
-      const rf = ship.isVertical ? row + ship.size - 1 : row;
-      const cf = ship.isVertical ? col : col + ship.size - 1;
-
+      const { rf, cf } = this.getShipEndCoords(row, col, ship.size, ship.isVertical);
       try {
         await api.placeVessel(gameId, player.id, {
           ri: row,
@@ -273,15 +284,19 @@ export const useGameStore = defineStore("game", {
       this.selectedShip = null;
 
       if (this.availableShips.length === 0) {
-        //this.gamePhase = "playing";
-        //this.gameStatus = "Your turn";
-        setTimeout(() => this.getGameState(this.currentGameId), 500);
+        await this.getGameState(this.currentGameId);
       }
     },
 
     async handleOpponentBoardClick(row, col) {
+      //Debugging
+      console.log("📤 Jugador intentando disparar...");
+      console.log("  ▶️ Fase actual:", this.gamePhase);
+
       if (this.gamePhase !== "playing") return;
-      // Validación básica de límites (ya que no lo haces en el backend)
+      if (this.firing) return;
+
+      // Validación básica de límites
       if (row < 0 || row >= 10 || col < 0 || col >= 10) {
         this.gameStatus = "Coordenadas fuera de los límites del tablero.";
         return;
@@ -295,9 +310,14 @@ export const useGameStore = defineStore("game", {
       }
 
       const player = this.playersInGame.find(p => p.nickname !== "cpu");
+       console.log("Es tu turno:", this.turnId === player.id);
       const gameId = this.currentGameId;
+      console.log("🚹 TURNO DEL JUGADOR");
+      console.log("Fase actual:", this.gamePhase);
+      console.log("Jugador PLAYER:", player);
+      console.log("Es el turno del PLAYER:", this.turnId === player.id);
+      this.firing = true;
       try {
-        console.log("🔫 Disparando a:", row, col);
         const response = await api.fireShot(gameId, player.id, { row, col });
         const result = response.data.result;
 
@@ -309,19 +329,27 @@ export const useGameStore = defineStore("game", {
           this.opponentBoard[row][col] = 11;
           this.gameStatus = "Miss!";
         }
+        console.log(`🚹 Disparo del PLAYER en (${row}, ${col}) →`, result === 1 ? "Hit" : "Miss");
+        // 🔄 Actualizar estado tras disparar
+        await this.getGameState(this.currentGameId);
 
-        // Esperar turno del oponente
-        setTimeout(this.opponentTurn, 1000);
+        // ✅ Solo si el juego sigue, hacer turno del CPU
+        if (this.gamePhase !== "gameOver") {
+          await this.opponentTurn();
+        }
+
       } catch (error) {
         console.error("Error al disparar:", error.response?.data); // <-- Agrega esto
         const msg = error.response?.data?.detail || JSON.stringify(error.response?.data) || error.message;
         this.gameStatus = msg;
+      }finally {
+        this.firing = false;
       }
+
     },
     async opponentTurn() {
-      await this.getGameState(this.currentGameId);
       if (this.gamePhase === "gameOver") {
-        console.log("🏁 La partida ha terminado. ¡Has perdido!");
+        return
       }
 
       const cpuPlayer = this.playersInGame.find(p => p.nickname === "cpu");
@@ -331,6 +359,11 @@ export const useGameStore = defineStore("game", {
       }
 
       let row, col, valid = false;
+      console.log("🤖 TURNO DEL CPU");
+      console.log("Fase actual:", this.gamePhase);
+      console.log("Jugador CPU:", cpuPlayer);
+      console.log("Es el turno del CPU:", this.turnId === cpuPlayer.id);
+
       while (!valid) {
         row = Math.floor(Math.random() * 10);
         col = Math.floor(Math.random() * 10);
@@ -341,12 +374,19 @@ export const useGameStore = defineStore("game", {
       try {
         const response = await api.fireShot(this.currentGameId, cpuPlayer.id, { row, col });
         const result = response.data.result;
+        console.log(`🤖 Disparo del CPU en (${row}, ${col}) →`, result === 1 ? "Hit" : "Miss");
+
+        // 🔄 Actualizar estado tras disparar
+        await this.getGameState(this.currentGameId);
+
+        if (this.gamePhase === "gameOver") {
+          console.log("🏁 Partida finalizada tras disparo del CPU");
+          return
+        }
 
         if (result === 1) {
-          this.playerBoard[row][col] = -this.playerBoard[row][col];
           this.gameStatus = "CPU hit your ship! - Your turn";
         } else {
-          this.playerBoard[row][col] = 11;
           this.gameStatus = "Your turn";
         }
 

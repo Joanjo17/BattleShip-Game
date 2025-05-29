@@ -111,7 +111,7 @@ const getShipStyle = (ship) => {
     position: "absolute",
     top: `${ship.position.row * cellSize + 31}px`, // +41px to account for the header
     left: `${ship.position.col * cellSize + 31}px`, // +41px to account for the header
-    transform: ship.isVertical ? "none" : "rotate(90deg)",
+    transform: ship.isVertical ? "none" : "rotate(270deg)",
     transformOrigin: ship.isVertical
       ? "top left"
       : `${cellSize / 2}px ${cellSize / 2}px`,

@@ -61,6 +61,7 @@ class GameViewSet(viewsets.ModelViewSet):
         if not game.multiplayer:
             # Crear usuario y jugador CPU si no existen
             cpu_user, _ = User.objects.get_or_create(username="cpu")
+            # obtener el jugador CPU
             cpu_player, _ = Player.objects.get_or_create(user=cpu_user, defaults={"nickname": "cpu"})
             game.players.add(cpu_player)
             Board.objects.get_or_create(game=game, player=cpu_player)
@@ -156,6 +157,10 @@ class ShotViewSet(viewsets.ModelViewSet):
         game = get_object_or_404(Game, pk=game_id)
         player = get_object_or_404(Player, pk=player_id)
 
+        print("📌 ESTADO INICIAL DEL DISPARO")
+        print(f"🔍 Game {game.id} | Phase: {game.phase} | Turn ID: {game.turn_id} | Winner: {game.winner_id}")
+        print(f"🎯 Dispara el jugador: {player.id} ({player.nickname})")
+
         if game.turn_id != player.id:
             raise ValidationError("No es tu turno.")
 
@@ -167,9 +172,6 @@ class ShotViewSet(viewsets.ModelViewSet):
         except (TypeError, ValueError):
             raise ValidationError("Coordenadas inválidas.")
 
-        if row is None or col is None:
-            raise ValidationError("Debes proporcionar 'row' y 'col'.")
-
         # Buscar el board del oponente
         opponent_board = Board.objects.filter(game=game).exclude(player=player).first()
         if not opponent_board:
@@ -178,6 +180,7 @@ class ShotViewSet(viewsets.ModelViewSet):
         print("📨 Data recibida para disparo:", self.request.data)
         print("📨 Jugador:", player.id, "Tablero del oponente:", opponent_board.id)
 
+        # Validar celda disparada (por seguridad, ya lo hace el frontend)
         if Shot.objects.filter(board=opponent_board, row=row, col=col).exists():
             raise ValidationError("Ya se disparó en esta celda.")
 
@@ -190,9 +193,10 @@ class ShotViewSet(viewsets.ModelViewSet):
                 break
 
         result = 1 if hit_vessel else 0
+        print(f"🔫 Resultado: {'Impacto' if hit_vessel else 'Agua'}")
 
         # Guardar el disparo
-        shot = serializer.save(
+        serializer.save(
             game=game,
             player=player,
             board=opponent_board,
@@ -210,7 +214,8 @@ class ShotViewSet(viewsets.ModelViewSet):
                 impact=hit_vessel
             ).values_list('row', 'col')
 
-            if all(cell in impacted_cells for cell in vessel_cells):
+            impacted_set = set(impacted_cells) # Convertir a set para eficiencia
+            if all(cell in impacted_set for cell in vessel_cells):
                 hit_vessel.alive = False
                 hit_vessel.save()
                 print(f"🚢 Barco {hit_vessel.id} hundido.")
@@ -220,10 +225,11 @@ class ShotViewSet(viewsets.ModelViewSet):
         if remaining == 0:
             game.phase = Game.PHASE_GAMEOVER
             game.winner = player
-            print(f"🏁 ¡Jugador {player.nickname} ha ganado la partida {game.id}!")
+            print(f"🏆 Partida terminada. Ganador: {player.nickname} (ID {player.id})")
         else:
             next_player = game.players.exclude(pk=player.id).first()
             game.turn = next_player
-            print(f"🔁 Turno cambiado a {next_player.nickname} en la partida {game.id}")
+            print(f"🔄 Próximo turno: Jugador {next_player.id} ({next_player.nickname})")
+            print(f"⏳ Barcos restantes del oponente: {remaining}")
 
         game.save()
