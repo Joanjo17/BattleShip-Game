@@ -15,7 +15,7 @@ const routes = [
     name: "Game",
     component: Game,
     meta: { requiresAuth: true },
-  },
+  }
 ];
 
 const router = createRouter({

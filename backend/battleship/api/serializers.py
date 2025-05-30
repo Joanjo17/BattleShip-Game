@@ -6,8 +6,17 @@ from .models import Player, Game, Board, Vessel, BoardVessel, Shot
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ['username', 'email']
+        fields = ['username', 'email', 'password']
+        extra_kwargs = {
+            'password': {'write_only': True}  # La contraseña solo se usará para entrada (no se mostrará al serializar)
+        }
         # exclude = ('password',)
+
+    def create(self, validated_data):
+        # Cuando se llama a serializer.save(), este se ejecuta en registros nuevos
+        # En lugar de usar `User(**validated_data)` + `set_password()`, usamos:
+        return User.objects.create_user(**validated_data)
+        # Esto se encarga de: validar, hashear contraseña, y aplicar configuraciones por defecto como is_active=True
 
 
 class PlayerSerializer(serializers.ModelSerializer):
@@ -23,57 +32,87 @@ class GameSerializer(serializers.ModelSerializer):
     class Meta:
         model = Game
         fields = '__all__'
+        extra_kwargs = {
+            'turn': {'required': False, 'allow_null': True},
+            'winner': {'required': False, 'allow_null': True},
+            'players': {'required': False},
+        }
 
     def get_extended_status(self, obj):
-        player = obj.owner
-        board = Board.objects.filter(game=obj, player=player).first()
-        width, height = obj.width, obj.height
-        vessels = BoardVessel.objects.filter(board=board).select_related("vessel")
+        owner = obj.owner
+        players = list(obj.players.all())
+        cpu_player = next((p for p in players if p != owner), None)
 
-        board_matrix = [[0 for _ in range(width)] for _ in range(height)]
+        def get_player_status(player):
+            board = Board.objects.filter(game=obj, player=player).first()
+            print(f"📦 Board obtenido para player {player.nickname} (ID {player.id}) en game {obj.id}: Board ID {board.id if board else 'None'}")
+            vessels = BoardVessel.objects.filter(board=board).select_related("vessel")
+            print(f"🚢 Barcos encontrados en Board {board if board else 'None'}: {[v.vessel.id for v in vessels]}")
+            width, height = obj.width, obj.height
+            board_matrix = [[0 for _ in range(width)] for _ in range(height)]
+            placed_ships = []
 
-        placed_ships = []
-        for bv in vessels:
-            ship_type = bv.vessel.id
-            ship_size = bv.vessel.size
-            is_vertical = bv.ri != bv.rf
-            placed_ships.append({
-                "type": ship_type,
-                "size": ship_size,
-                "position": {
-                    "row": bv.ri,
-                    "col": bv.ci
-                },
-                "isVertical": is_vertical
-            })
+           # Añadir los barcos al tablero
+            for bv in vessels:
+                ship_type = bv.vessel.id
+                ship_size = bv.vessel.size
+                is_vertical = bv.ri != bv.rf
+                placed_ships.append({
+                    "type": ship_type,
+                    "size": ship_size,
+                    "position": {
+                        "row": bv.ri,
+                        "col": bv.ci
+                    },
+                    "isVertical": is_vertical
+                })
+                for i in range(ship_size):
+                    r = bv.ri + i if is_vertical else bv.ri
+                    c = bv.ci if is_vertical else bv.ci + i
+                    try:
+                        board_matrix[r][c] = ship_type
+                    except IndexError:
+                        # Esto solo pasa si se cuela un barco fuera por error
+                        print(f"Posición inválida en backend para {player.nickname}: ({r}, {c})")
 
-            for i in range(ship_size):
-                r = bv.ri + i if is_vertical else bv.ri
-                c = bv.ci if is_vertical else bv.ci + i
-                board_matrix[r][c] = ship_type
+            # Añadir disparos al tablero
+            shots = Shot.objects.filter(board=board)
+            for shot in shots:
+                r, c = shot.row, shot.col
+                # Verificar que las coordenadas están dentro del tablero
+                # (por si acaso eh, lo hace el frontend ya)
+                if 0 <= r < height and 0 <= c < width:
+                    if shot.result == 1:
+                        # HIT: marcar con negativo del tipo de barco si hay impacto
+                        board_matrix[r][c] = -board_matrix[r][c]
+                    else:
+                        # Agua: marcar como 11
+                        board_matrix[r][c] = 11
 
-        all_vessels = Vessel.objects.all()
-        placed_types = {s["type"] for s in placed_ships}
-        available_ships = [
-            {
-                "type": v.id,
-                "size": v.size,
-                "isVertical": True
-            }
-            for v in all_vessels if v.id not in placed_types
-        ]
+            all_vessels = Vessel.objects.all()
+            placed_types = {s["type"] for s in placed_ships}
+            available_ships = [
+                {
+                    "type": v.id,
+                    "size": v.size,
+                    "isVertical": True
+                }
+                for v in all_vessels if v.id not in placed_types
+            ]
 
-        return {
-            "player": {
+            return {
                 "id": player.id,
                 "username": player.nickname,
                 "board": board_matrix,
                 "placedShips": placed_ships,
-                "availableShips": available_ships
+                "availableShips": available_ships,
+                "prepared": board.prepared if board else False
             }
+
+        return {
+            "player": get_player_status(owner),
+            "opponent": get_player_status(cpu_player) if cpu_player else None
         }
-
-
 
 
 class BoardSerializer(serializers.ModelSerializer):
@@ -98,3 +137,10 @@ class ShotSerializer(serializers.ModelSerializer):
     class Meta:
         model = Shot
         fields = '__all__'
+        extra_kwargs = {
+            'result': {'required': False},#indica si es un impacto o agua
+            'board': {'required': False},
+            'player': {'required': False},
+            'game': {'required': False},
+            'impact': {'required': False}, #identificar barco impactado
+        }

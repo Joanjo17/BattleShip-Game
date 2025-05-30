@@ -1,35 +1,13 @@
 import AuthService from "@/services/auth.js";
+
 const axiosInstance = AuthService.getAxiosInstance();
 
 export default {
   getAvailableShips() {
-    return Promise.resolve([
-      {
-        type: 1,
-        isVertical: true,
-        size: 1,
-      },
-      {
-        type: 2,
-        isVertical: true,
-        size: 2,
-      },
-      {
-        type: 3,
-        isVertical: true,
-        size: 3,
-      },
-      {
-        type: 4,
-        isVertical: true,
-        size: 4,
-      },
-      {
-        type: 5,
-        isVertical: true,
-        size: 5,
-      },
-    ]);
+    return axiosInstance.get("/api/v1/vessels/");
+  },
+  createGame(payload) {
+    return axiosInstance.post(`/api/v1/games/`, payload);
   },
 
   getGameState(gameId) {
@@ -39,4 +17,15 @@ export default {
   getUser(id) {
     return axiosInstance.get(`/api/v1/user/${id}`);
   },
+
+  getPlayersInGame(gameId) {
+    return axiosInstance.get(`/api/v1/games/${gameId}/players/`);
+  },
+  placeVessel(gameId, playerId, vesselData) {
+    console.log(" Placing vessel: Game ID:"+ gameId+ "Player ID: "+ playerId+ "Vessel Data: "+ JSON.stringify(vesselData));
+    return axiosInstance.post(`/api/v1/games/${gameId}/players/${playerId}/vessels/`, vesselData);
+  },
+  fireShot(gameId, playerId, payload) {
+    return axiosInstance.post(`/api/v1/games/${gameId}/players/${playerId}/shots/`, payload);
+  }
 };

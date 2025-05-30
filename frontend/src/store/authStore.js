@@ -10,6 +10,7 @@ export const useAuthStore = defineStore("auth", {
     loading: false,
     error: null,
     playersList: [],
+    userid: null,
   }),
   actions: {
     initializeAuthStore() {
@@ -25,7 +26,7 @@ export const useAuthStore = defineStore("auth", {
       return AuthService.login(user)
         .then((response) => {
           console.log("response", response);
-          response = JSON.parse(response); // this is a mock, in real case it will be axios response
+          //response = JSON.parse(response); // this is a mock, in real case it will be axios response
           this.username = user.username;
           this.accessToken = response.data.access;
           this.refreshToken = response.data.refresh;
@@ -34,12 +35,38 @@ export const useAuthStore = defineStore("auth", {
           localStorage.setItem("username", this.username);
           localStorage.setItem("access", this.accessToken);
           localStorage.setItem("refresh", this.refreshToken);
+
+
         })
         .catch((error) => {
           console.log("error", error);
           this.error =
             error.response?.data?.detail || "Login failed. Try again.";
           this.isAuthenticated = false;
+        })
+        .finally(() => {
+          this.loading = false;
+          // Cargar jugadores después del login
+          return this.getAllPlayers();
+        });
+    },
+    register(userData) {
+      this.loading = true;
+      this.error = null;
+
+      return AuthService.register(userData)
+        .then(() => {
+          // El registro fue exitoso, ahora puedes hacer login automáticamente
+          return this.login({
+            username: userData.username,
+            password: userData.password,
+          });
+        })
+        .catch((error) => {
+          console.log("error", error);
+          this.error = error.response?.data || "Registration failed.";
+          this.isAuthenticated = false;
+          throw error; // opcional: para poder capturar en el componente si hace falta
         })
         .finally(() => {
           this.loading = false;
@@ -53,9 +80,12 @@ export const useAuthStore = defineStore("auth", {
       localStorage.removeItem("username");
       localStorage.removeItem("access");
       localStorage.removeItem("refresh");
+      localStorage.removeItem("currentGameId");
     },
+
     async getAllPlayers() {
           try {
+            this.playersList = [];
             const response = await AuthService.getAllPlayers();
             for (const player of response.data) {
               this.playersList.push({

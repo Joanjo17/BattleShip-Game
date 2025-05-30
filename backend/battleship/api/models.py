@@ -56,7 +56,7 @@ class BoardVessel(models.Model):
 
 
 class Shot(models.Model):
-    impact = models.OneToOneField(BoardVessel, on_delete=models.CASCADE)
+    impact = models.ForeignKey(BoardVessel, on_delete=models.SET_NULL, null=True, blank=True)
     board = models.ForeignKey(Board, related_name="shots", on_delete=models.CASCADE)
     player = models.ForeignKey(Player, related_name="shots", on_delete=models.CASCADE, blank=True, null=True)
     game = models.ForeignKey(Game, related_name="shots", on_delete=models.CASCADE, blank=True, null=True)

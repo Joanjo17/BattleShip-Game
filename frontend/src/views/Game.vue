@@ -25,12 +25,23 @@ const authStore = useAuthStore();
 //   console.log(user.value);
 // }
 
-onMounted(() => {
+onMounted( async () => {
   // To start a new game, uncomment the line below
-  // store.startNewGame();
+   //store.startNewGame();
   // To fetch the game state, uncomment the line below
-   store.getGameState("1");
+   //store.getGameState("76");
   // getUsers();
+  const savedGameId = localStorage.getItem("currentGameId");
+
+  if (savedGameId) {
+    try {
+      await store.getGameState(savedGameId);
+      console.log("🔁 Partida restaurada desde localStorage:", savedGameId);
+    } catch (error) {
+      console.error("❌ No se pudo restaurar la partida:", error.message);
+      localStorage.removeItem("currentGameId");
+    }
+  }
 });
 
 const onLogout = () => {
@@ -74,8 +85,17 @@ const onLogout = () => {
       <!-- Controls -->
       <div v-else class="col-lg-2 d-flex flex-column justify-content-center">
         <div class="game-controls text-center">
-          <div class="game-status mb-3">{{ store.gameStatus }}</div>
-          <button class="btn btn-primary" @click="store.startNewGame()">
+          <div
+            class="game-status mb-3"
+            :style="store.gamePhase === 'gameOver' ? { color: 'red', fontSize: '1.5rem', fontWeight: 'bold' } : {}"
+          >
+            {{ store.gameStatus }}
+          </div>
+          <button
+            class="btn btn-primary"
+            v-if="store.gamePhase === 'waiting' || store.gamePhase === 'gameOver'"
+            @click="store.startNewGame()"
+          >
             New Game
           </button>
         </div>
@@ -107,5 +127,7 @@ const onLogout = () => {
 .game-status {
   font-size: 1.2rem;
   font-weight: bold;
+  word-break: break-word; /* Asegura que el texto no se desborde */
+  text-align: center;
 }
 </style>
