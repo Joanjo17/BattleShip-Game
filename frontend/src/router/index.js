@@ -1,7 +1,6 @@
 import { createRouter, createWebHistory } from "vue-router";
 import Home from "../views/Home.vue";
 import Game from "../views/Game.vue";
-import GameList from '../views/GameList.vue';
 
 import { useAuthStore } from "../store/authStore";
 
@@ -16,13 +15,6 @@ const routes = [
     name: "Game",
     component: Game,
     meta: { requiresAuth: true },
-  },
-    {
-    path: '/game/:id',
-    name: 'GameList',
-    component: GameList,
-    meta: { requiresAuth: true },
-    props: true, // 👈 para que el id se pase como prop (opcional si usas useRoute)
   }
 ];
 
