@@ -4,7 +4,7 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.permissions import AllowAny, IsAdminUser
 from rest_framework.response import Response
 from django.shortcuts import get_object_or_404
-
+from rest_framework.exceptions import PermissionDenied
 from . import models
 from .models import Game, Player, Board, BoardVessel, Shot, Vessel
 from . import serializers
@@ -80,6 +80,12 @@ class GameViewSet(viewsets.ModelViewSet):
 
         print(f"🛠️ Board creado para el propietario {player.id} y CPU en la partida {game.id}")
 
+    def destroy(self, request, *args, **kwargs):
+        game = self.get_object()
+        if game.owner.user != request.user:
+            raise PermissionDenied("Solo el propietario puede eliminar esta partida.")
+        return super().destroy(request, *args, **kwargs)
+
 class BoardViewSet(viewsets.ModelViewSet):
     serializer_class = BoardSerializer
 
@@ -140,6 +146,31 @@ class BoardVesselViewSet(viewsets.ModelViewSet):
 class VesselViewSet(viewsets.ModelViewSet):
     queryset = Vessel.objects.all()
     serializer_class = VesselSerializer
+
+    def get_queryset(self):
+        self.ensure_default_vessels()
+        return super().get_queryset()
+
+    def ensure_default_vessels(self):
+        default_vessels = [
+            {"id": 1, "size": 1, "name": "Patrol Boat",
+             "image": "src/assets/SeaWarfareSet/PatrolBoat/ShipPatrolHull.png"},
+            {"id": 2, "size": 2, "name": "Destroyer",
+             "image": "src/assets/SeaWarfareSet/Destroyer/ShipDestroyerHull.png"},
+            {"id": 3, "size": 3, "name": "Cruiser", "image": "src/assets/SeaWarfareSet/Cruiser/ShipCruiserHull.png"},
+            {"id": 4, "size": 4, "name": "Submarine",
+             "image": "src/assets/SeaWarfareSet/Submarine/ShipSubmarineHull.png"},
+            {"id": 5, "size": 5, "name": "Carrier", "image": "src/assets/SeaWarfareSet/Carrier/ShipCarrierHull.png"},
+        ]
+        for vessel_data in default_vessels:
+            Vessel.objects.update_or_create(
+                id=vessel_data["id"],
+                defaults={
+                    "size": vessel_data["size"],
+                    "name": vessel_data["name"],
+                    "image": vessel_data["image"]
+                }
+            )
 
 
 class ShotViewSet(viewsets.ModelViewSet):

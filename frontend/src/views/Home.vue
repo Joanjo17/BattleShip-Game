@@ -1,8 +1,10 @@
 <script setup>
 import { ref, onMounted } from "vue";
 import { useAuthStore } from "../store/authStore";
+import { useRouter } from "vue-router";
 
 const authStore = useAuthStore();
+const router = useRouter();
 
 const username = ref("");
 const password = ref("");
@@ -14,12 +16,9 @@ onMounted(() => {
   authStore.initializeAuthStore();
   if (authStore.isAuthenticated) {
     authStore.getAllPlayers();
+    router.push("/configuracion"); // redirige si ya está logeado
   }
 });
-
-const startGame = () => {
-  window.location.href = "/game";
-};
 
 const authenticateUser = async () => {
   if (!username.value || !password.value) {
@@ -32,6 +31,9 @@ const authenticateUser = async () => {
       username: username.value,
       password: password.value,
     });
+
+    // Redireccionar tras login exitoso
+    router.push("/configuracion");
 
   } catch (error) {
     console.error("Login failed", error);
@@ -75,18 +77,7 @@ const logOut = () => {
   <div class="home text-center mt-4">
     <h1>Welcome to Battleship Game</h1>
 
-    <div v-if="authStore.isAuthenticated" class="mt-5">
-      <h3>You're logged in!</h3>
-      <div class="mb-3">
-        Access Token: {{ authStore.accessToken.slice(0, 20) }}...
-      </div>
-      <button class="btn btn-primary mr-2" @click="startGame">
-        Start New Game
-      </button>
-      <button class="btn btn-secondary" @click="logOut">Log Out</button>
-    </div>
-
-    <div v-else>
+    <div>
       <h3>{{ isRegistering ? "Register" : "Login" }}</h3>
       <form
         @submit.prevent="isRegistering ? registerUser() : authenticateUser()"
@@ -144,21 +135,8 @@ const logOut = () => {
       </form>
     </div>
   </div>
-
-  <div v-if="authStore.isAuthenticated && authStore.playersList.length > 0" class="mt-5">
-    <h3>Jugadors disponibles</h3>
-    <ul class="list-group">
-      <li
-        v-for="player in authStore.playersList"
-        :key="player.id"
-        class="list-group-item"
-      >
-        {{ player.nickname }}
-      </li>
-    </ul>
-  </div>
-
 </template>
+
 
 <style scoped>
 .home {

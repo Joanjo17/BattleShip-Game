@@ -4,9 +4,9 @@
 > Afegiu la informació del grup, substituint G pel grup i XX per l'equip. 
 > Afegiu el nom i cognoms dels membres de l'equip
 
-| Equip | Membre 1     | Membre 2     |
-|-------|--------------|--------------|
-|  GXX  | Cognoms, Nom | Cognoms, Nom | 
+| Equip | Membre 1            | Membre 2                  |
+|-------|---------------------|---------------------------|
+| C08   | M'ssali Doul, Aiman | Lira Casanova, Joan Josep | 
 
 
 > [!CAUTION]

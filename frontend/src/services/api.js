@@ -27,5 +27,13 @@ export default {
   },
   fireShot(gameId, playerId, payload) {
     return axiosInstance.post(`/api/v1/games/${gameId}/players/${playerId}/shots/`, payload);
+  },
+
+  getAllGames() {
+    return axiosInstance.get(`/api/v1/games/`);
+  },
+
+  deleteGame(gameId) {
+    return axiosInstance.delete(`/api/v1/games/${gameId}/`);
   }
 };

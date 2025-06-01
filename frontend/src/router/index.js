@@ -1,8 +1,11 @@
 import { createRouter, createWebHistory } from "vue-router";
 import Home from "../views/Home.vue";
 import Game from "../views/Game.vue";
+import Configuracion from "../views/Configuracion.vue";
+import partidas_reanudar from "../views/partidas_reanudar.vue";
 
 import { useAuthStore } from "../store/authStore";
+
 
 const routes = [
   {
@@ -15,7 +18,19 @@ const routes = [
     name: "Game",
     component: Game,
     meta: { requiresAuth: true },
-  }
+  },
+   {
+    path: "/configuracion",
+    name: "Configuracion",
+    component: Configuracion,
+    meta: { requiresAuth: true },
+  },
+    {
+    path: "/partidas_reanudar",
+    name: "Partidas_reanudar",
+    component: partidas_reanudar,
+    meta: { requiresAuth: true },
+  },
 ];
 
 const router = createRouter({

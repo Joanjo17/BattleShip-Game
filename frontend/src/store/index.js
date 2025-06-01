@@ -16,6 +16,8 @@ export const useGameStore = defineStore("game", {
     currentGameId: -1, // ID de la partida actual
     turnId: -1, // ID del jugador cuyo turno es
     firing: false, // Indica si se está disparando
+    availableGames: [],
+    owner: null, // ID del jugador que creó la partida
   }),
 
   actions: {
@@ -48,6 +50,7 @@ export const useGameStore = defineStore("game", {
         localStorage.setItem("currentGameId", gameId);
         const response = await api.getGameState(gameId);
         const gameData = response.data;
+        this.owner = response.data.owner; // Guardar el propietario de la partida
 
         console.log("Datos completos del backend:", gameData);
         const player = gameData.extended_status.player;
@@ -409,6 +412,30 @@ export const useGameStore = defineStore("game", {
           this.gameStatus = msg;
           break;
         }
+      }
+    },
+    async fetchAvailableGames() {
+      try {
+        const response = await api.getAllGames();
+        this.availableGames = response.data;
+
+        console.log("📦 Partidas disponibles:", this.availableGames);
+      } catch (error) {
+        const message = error.response?.data?.detail || error.message;
+        console.error("Error al obtener partidas disponibles:", message);
+        this.availableGames = [];
+      }
+    },
+
+    async deleteGame(gameId) {
+      try {
+        await api.deleteGame(gameId);
+        console.log(`🗑️ Partida ${gameId} eliminada.`);
+        await this.fetchAvailableGames();
+      } catch (error) {
+        const msg = error.response?.data?.detail || error.message;
+        console.error("Error al eliminar partida:", msg);
+        throw new Error(msg);
       }
     }
   },

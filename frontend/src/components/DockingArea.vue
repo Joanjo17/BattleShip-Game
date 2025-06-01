@@ -97,7 +97,7 @@ const rotateSelectedShip = () => {
       // Update ship object with new rotation
       const updatedShip = {
         ...ship,
-        isVertical: !shipRotations.value[selectedShipType.value],
+        isVertical: shipRotations.value[selectedShipType.value],
       };
 
       // Emit event with updated ship
