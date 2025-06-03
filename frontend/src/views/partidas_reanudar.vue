@@ -8,19 +8,27 @@ const gameStore = useGameStore();
 const authStore = useAuthStore();
 const router = useRouter();
 
+// Al montar, llamamos a la acción fetchAvailableGames del store
 onMounted(() => {
   gameStore.fetchAvailableGames();
 
 
 });
 
+/**
+ * Verifica y entra en una partida existente:
+ * - Si 'phase' es “gameOver”, muestra alerta de que la partida ya terminó.
+ * - Si el usuario actual no es el 'owner', muestra alerta y no permite unirse.
+ * - Si todo es válido, llama a 'gameStore.getGameState(gameId)' para cargar la partida.
+ *   Luego redirige a '/game'.
+ */
 const verificarYEntrarEnPartida = async (gameId, phase, owner) => {
   if (phase === "gameOver") {
     alert("⚠️ Esta partida ya ha terminado.");
     return;
   }
 
-  // 2) Si el usuario logueado NO es el propietario, impedir la unión
+  // Si el usuario logueado NO es el propietario, impedir la unión
   if (owner !== authStore.username) {
     alert("🚫 No puedes unirte a la partida de otro jugador.");
     return;
@@ -34,7 +42,12 @@ const verificarYEntrarEnPartida = async (gameId, phase, owner) => {
   }
 };
 
-// ← Nueva función: confirmar y eliminar
+/**
+ * Confirma la eliminación de una partida:
+ * - Muestra un diálogo de confirmación.
+ * - Si el usuario confirma, llama a 'gameStore.deleteGame(gameId)'.
+ * - Muestra un mensaje de éxito o error según corresponda.
+ */
 const confirmarYEliminar = async (gameId) => {
   const sure = confirm("¿Estás seguro de que quieres eliminar esta partida?");
   if (!sure) return;

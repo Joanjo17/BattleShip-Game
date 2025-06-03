@@ -3,22 +3,38 @@ import AuthService from "../services/auth";
 
 export const useAuthStore = defineStore("auth", {
   state: () => ({
-    username: null,
-    accessToken: null,
-    refreshToken: null,
-    isAuthenticated: false,
-    loading: false,
-    error: null,
-    playersList: [],
-    userid: null,
+    username: null,  // Nombre de usuario del usuario logueado
+    accessToken: null,  // JWT access token
+    refreshToken: null,  // JWT refresh token
+    isAuthenticated: false,  // Booleano que indica si el usuario está autenticado
+    loading: false,  // Indicador de carga para mostrar spinners o deshabilitar botones
+    error: null,  // Mensaje de error en caso de fallo en login/registro
+    playersList: [],  // Lista de jugadores obtenida del backend
+    userid: null,  // ID del usuario (opcional, si se necesita)
   }),
   actions: {
+
+    /**
+     * Inicializa el estado de autenticación a partir de localStorage.
+     * - Carga username, accessToken y refreshToken.
+     * - Marca isAuthenticated en true si existe un accessToken.
+     * Se debe llamar al arrancar la app o antes de rutas protegidas.
+     */
     initializeAuthStore() {
       this.username = localStorage.getItem("username");
       this.accessToken = localStorage.getItem("access");
       this.refreshToken = localStorage.getItem("refresh");
       this.isAuthenticated = !!this.accessToken;
     },
+
+    /**
+     * Intenta hacer login con usuario y contraseña.
+     * - 'user' es objeto { username, password }.
+     * - Muestra spinner (loading = true) mientras espera la respuesta.
+     * - Si el login es exitoso, guarda tokens en state y en localStorage.
+     * - Luego llama a getAllPlayers() para poblar playersList.
+     * - En caso de error, asigna mensaje a this.error y marca isAuthenticated = false.
+     */
     login(user) {
       this.loading = true;
       this.error = null;
@@ -50,6 +66,13 @@ export const useAuthStore = defineStore("auth", {
           return this.getAllPlayers();
         });
     },
+
+    /**
+     * Registra un nuevo usuario.
+     * - 'userData' es objeto { username, email, password }.
+     * - Si el registro es exitoso, llama automáticamente a login() para iniciar sesión.
+     * - En caso de error, asigna mensaje a this.error y lanza excepción para el componente.
+     */
     register(userData) {
       this.loading = true;
       this.error = null;
@@ -73,6 +96,12 @@ export const useAuthStore = defineStore("auth", {
         });
     },
 
+    /**
+     * Cierra sesión:
+     * - Limpia tokens y username del state.
+     * - Marca isAuthenticated = false.
+     * - Elimina datos relacionados de localStorage (username, access, refresh, currentGameId).
+     */
     logout() {
       this.accessToken = null;
       this.refreshToken = null;
@@ -83,6 +112,12 @@ export const useAuthStore = defineStore("auth", {
       localStorage.removeItem("currentGameId");
     },
 
+    /**
+     * Obtiene la lista de todos los jugadores (GET /api/v1/players/).
+     * - Llama a AuthService.getAllPlayers() que retorna un array de objetos Player.
+     * - Mapea cada jugador a { id, nickname } y lo añade a this.playersList.
+     * - Si hay error, lanza excepción con el mensaje correspondiente.
+     */
     async getAllPlayers() {
           try {
             this.playersList = [];

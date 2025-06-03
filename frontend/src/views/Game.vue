@@ -28,6 +28,13 @@ const router = useRouter();
 //   console.log(user.value);
 // }
 
+
+/**
+ * Al montar el componente, comprueba si existe un 'currentGameId' en localStorage.
+ * Si existe, intenta restaurar el estado de la partida mediante 'getGameState(id)'.
+ * - Si tiene éxito, muestra en consola “Partida restaurada ...”.
+ * - Si falla (por ejemplo, la partida ya no existe), borra 'currentGameId'.
+ */
 onMounted(async () => {
   const savedGameId = localStorage.getItem("currentGameId");
 
@@ -42,12 +49,6 @@ onMounted(async () => {
   }
 });
 
-const onLogout = () => {
-  if (confirm("Are you sure you want to log out?")) {
-    authStore.logout();
-    window.location.href = "/";
-  }
-};
 
 const volverAConfiguracion = () => {
   router.go(-1); // vuelve una página atrás en el historial

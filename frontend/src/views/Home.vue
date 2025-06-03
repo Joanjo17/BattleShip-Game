@@ -20,6 +20,7 @@ onMounted(() => {
   }
 });
 
+// Función para autenticar al usuario
 const authenticateUser = async () => {
   if (!username.value || !password.value) {
     alert("Please enter both username and password.");
@@ -40,6 +41,7 @@ const authenticateUser = async () => {
   }
 };
 
+// Función para registrar un nuevo usuario
 const registerUser = async () => {
   if (!username.value || !password.value || !confirmPassword.value || !email.value) {
     alert("Please fill in all fields.");
@@ -68,9 +70,6 @@ const registerUser = async () => {
   }
 };
 
-const logOut = () => {
-  authStore.logout();
-};
 </script>
 
 <template>

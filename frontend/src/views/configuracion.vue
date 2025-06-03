@@ -8,17 +8,29 @@ const router = useRouter();
 const authStore = useAuthStore();
 const store = useGameStore();
 
+/**
+ * Crea una nueva partida:
+ * 1) Llama a 'store.startNewGame()' para solicitar al backend la creación.
+ *    Esta acción actualiza 'store.currentGameId' y guarda el ID en localStorage.
+ * 2) Redirige a la ruta '/game' para que el usuario inicie la fase de colocación.
+ */
 const irACrearPartida = async () => {
-  // 1) Creamos la partida en el backend y guardamos el nuevo ID en el store (que también actualiza localStorage)
+  // Creamos la partida en el backend y guardamos el nuevo ID en el store (que también actualiza localStorage)
   await store.startNewGame();
-  // 2) Una vez creada, redirigimos a /game
+  // Una vez creada, redirigimos a /game
   router.push("/game");
 };
 
+/**
+ * Navega a la vista “Reanudar Partida”, donde se muestra la lista de partidas disponibles.
+ */
 const irAIniciarPartida = () => {
   router.push("/partidas_reanudar");
 };
 
+/**
+ * Navega a la vista “Leaderboard” para mostrar los 5 mejores jugadores.
+ */
 const leaderBoard = () => {
   router.push("/leaderboard");
 };

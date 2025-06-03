@@ -3,20 +3,36 @@ import AuthService from "../services/auth";
 
 export const useAuthStore = defineStore("auth", {
   state: () => ({
-    username: null,
-    accessToken: null,
-    refreshToken: null,
-    isAuthenticated: false,
-    loading: false,
-    error: null,
+    username: null,  // Nombre de usuario del usuario logueado
+    accessToken: null,  // JWT access token almacenado
+    refreshToken: null,  // JWT refresh token almacenado
+    isAuthenticated: false,  // Booleano que indica si el usuario está autenticado
+    loading: false,  // Indicador para estado de carga (spinner, deshabilitar botones, etc.)
+    error: null,  // Mensaje de error en caso de fallo en login
   }),
   actions: {
+
+    /**
+     * Inicializa el store de autenticación leyendo localStorage:
+     * - username, accessToken y refreshToken.
+     * - isAuthenticated pasa a true si existe accessToken.
+     * Se debe invocar al iniciar la aplicación o antes de rutas protegidas.
+     */
     initializeAuthStore() {
       this.username = localStorage.getItem("username");
       this.accessToken = localStorage.getItem("access");
       this.refreshToken = localStorage.getItem("refresh");
       this.isAuthenticated = !!this.accessToken;
     },
+
+    /**
+     * Realiza el login del usuario:
+     * - user: objeto { username, password }
+     * - Muestra spinner (loading = true) mientras espera la respuesta.
+     * - Si es exitoso, guarda username y tokens en state y localStorage.
+     * - Si falla, asigna mensaje a 'this.error' y marca isAuthenticated = false.
+     * - Al finalizar, siempre setea loading = false.
+     */
     login(user) {
       this.loading = true;
       this.error = null;
@@ -44,6 +60,12 @@ export const useAuthStore = defineStore("auth", {
         });
     },
 
+    /**
+     * Cierra sesión:
+     * - Borra tokens y username del state.
+     * - Marca isAuthenticated = false.
+     * - Elimina las claves correspondientes de localStorage.
+     */
     logout() {
       this.accessToken = null;
       this.refreshToken = null;
