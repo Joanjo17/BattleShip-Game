@@ -37,9 +37,11 @@
 ### Encountered issues, how you solved them if you did.
 
 1. **Error en la lógica de turnos**  
-   - **Descripción:** Cuando un jugador acertaba con un disparo, el turno pasaba inmediatamente al bot en lugar de permitir que el mismo jugador continuara disparando (lo cual incumple las reglas de Battleship).  
+   - **Descripción:** Cuando un jugador acertaba con un disparo, el turno pasaba inmediatamente al bot en lugar de 
+   permitir que el mismo jugador continuara disparando (lo cual incumple las reglas de Battleship).  
    - **Solución:**  
-     - En el frontend (`index.js`), ajustamos la lógica para que, si el disparo es un impacto (`result === 1`), el mismo jugador (o el CPU) conserve el turno hasta que falle o termine el juego.  
+     - En el frontend (`index.js`), ajustamos la lógica para que, si el disparo es un impacto (`result === 1`), el mismo 
+     jugador (o el bot) conserve el turno hasta que falle o termine el juego.  
      - Ejemplo de código refactorizado:
        ```js
        while (result === 1 && this.gamePhase !== "gameOver" && this.turnId == cpuPlayer.id) {
@@ -185,7 +187,7 @@
 6. **Interfaz de usuario confusa** 
    - **Solución:**  
      - Reorganizamos la disposición de botones y mensajes de estado usando clases de Bootstrap para mayor consistencia.  
-     - Añadimos instrucciones y `placeholder` en los inputs (por ejemplo, “Introduce tu nombre de usuario”).  
+     - Añadimos instrucciones y `placeholder` en los inputs.
      - Mostramos estados de carga (“Logging in…”, “Registrando…”) y errores contextuales (por ejemplo, “Error: correo ya registrado”).
      - Añadimos opciones para crear partida, unirse a la partida o cerrar sesión.
 

@@ -8,93 +8,110 @@
 
 {{#authors AimanDoul04,Joanjo17}}
 
-> [!CAUTION]
-> Afegiu les pàgines que considereu oportunes. Cal que aquest document contingui tota la informació de la pràctica.
-> **Com a mínim:**
-> - Llistat d'objectius complerts i no complerts
-> - Resum de l'organització de l'equip de treball durant la pràctica
-> - Descripció de les dificultats trobades durant la pràctica
-> - Proves unitàries realitzades
-> - Proves creuades realitzades
-> - Captures on es vegi el funcionament final de la pràctica
-> - Informació de desplegament de la pràctica
-
-
-
-### 1. Objetivos cumplidos vs no cumplidos
+## 1. Objetivos cumplidos vs no cumplidos
 
 **Objetivos cumplidos:**
-   - Registro y auntenticación de usuarios.
-   - La partida puede ser creada correctamente y se puede jugar contra un bot.
-   - Se permite colocar barcos y disparar respectivamente y respetando las reglas del juego (turnos, etc.), 
-   además de recibir impactos y fallos, y sus respectivos mensajes.
-   - El juego termian correctamente (se detecta victoria o derrota).
-   - Se permite reanudar una partida guardada y eliminar una partida guardada correctamente.
-   - Puede manejar varios juegos simultáneamente.
-   - Puede manejar múltiples jugadores simultáneos
-   - Se ha implementado el Leaderboard.
-   
+- Registro y autenticación de usuarios.
+- Creación de partidas (single-player contra bot).
+- Posibilidad de colocar barcos y disparar en el tablero, respetando turnos y reglas (hit/miss).
+- El juego finaliza correctamente con detección de ganador.
+- Persistencia de partidas: reanudar y eliminar partidas guardadas.
+- Manejo de múltiples partidas y jugadores simultáneos.
+- Implementación de “Leaderboard” (Tauler de lideratge).
+
 **Objetivos no cumplidos:**
-    - No se ha implementado el modo multijugador.
-    - No se han realizado pruebas unitarias ni de integración para el backend y el frontend.
+- No se ha implementado el modo multijugador real.
+- No se han creado pruebas unitarias ni de integración para el backend y frontend.
+
+---
+
+## 2. Resumen de la organización del equipo
+
+Durante la pràctica, l’equip es va organitzar de la següent manera:
+
+- **Joan Josep Lira Casanova**  
+  - Implementació del backend.
+  - Definició completa de models: `Player`, `Game`, `Board`, `Vessel`, `BoardVessel`, `Shot`.
+  - Definició completa de vistes: `UserViewSet`, `PlayerViewSet`, `GameViewSet`, `BoardViewSet`, `BoardVesselViewSet`, `ShotViewSet`, `VesselViewSet`.
+  - Definició completa de serializers: `UserSerializer`, `PlayerSerializer`, `GameSerializer`, `BoardSerializer`, `VesselSerializer`, `BoardVesselSerializer`, `ShotSerializer`.
+  - Definició completa de URLs i nested routers per a cada vista.
+  - Serialitzadors i ViewSets per a cadascun, incloent lògica de creació de partides, col·locació de vaixells, gestió de tirades i canvi de fase.  
+  - Integració de Django Signals per a crear automàticament un `Player` quan es registra un `User`.  
+  - Implementació de la lògica de comunicació amb l’API via `api.js`.
+  - Tasques de la sessió 3, 4 i 5: adaptació de serializers, permisos i nested routers.
+
+- **Aiman Doul**   
+  - Creació y definició de models: `User`, `Player`, `Game`, `Board`, `BoardVessel`, `Shot`, `Vessel`.
+  - Creació y definició de vistes: `UserViewSet`, `PlayerViewSet`, `GameViewSet`, `BoardViewSet`, `BoardVesselViewSet`, `ShotViewSet`, `VesselViewSet`.
+  - Creació y definició de serializers: `UserSerializer`, `PlayerSerializer`, `GameSerializer`, `BoardSerializer`, `VesselSerializer`, `BoardVesselSerializer`, `ShotSerializer`.
+  - Creació y definició completa de URLs i nested routers per a cada vista.
+  - Desenvolupament del frontend.
+  - Creació y modificació de components: `Home.vue` (login/registre), `Configuracion.vue` (menu principal), `Game.vue` (interficie de joc), `partidas_reanudar.vue` (llista de partides disponibles), `Leaderboard.vue` (tauler de lideratge).
+  - Implementació de la lògica de comunicació amb l’API via `api.js`. 
+  - Resolució d’errors en la rotació i col·locació de vaixells, així com en el flux “hit -> nou torn”.  
+  - Sessió 2, tutorial sessió 3, 5 i 6: estructura i estils del frontend, correcció d’errors.
+
+---
+
+## 3. Descripción de las dificultades encontradas
+
+- La lògica de torns (si un jugador fa “hit”, ha de continuar fins a fallar) va requerir bastants proves i ajustos tant al backend com al frontend.  
+- La integració entre frontend i backend requeria validar esquemes JSON i gestionar errors (per exemple, col·locació fora de límits, tir repetit).  
+- La persistència de l’estat (guardat al `localStorage`) i la recuperació al refresh no funcionava correctament fins que no es va afegir `getGameState(currentGameId)` a `onMounted`.  
+- Gestionar múltiples partides simultànies implicava filtrar correctament per `game_id` i `player_id` als endpoints nested (nested routers).  
+- A l’hora de rotar els vaixells i calcular `rf` i `cf` correctament: calia revisar `isVertical` i ajustos en `isValidPlacement`.  
+- Falten proves unitàries i integració: la manca d’aquestes dificultava la localització d’errors petits i regressions,
+per tant, feiem debug manual y inspecció de les peticions/respostes a l’API per assegurar-nos que tot funcionava com s’esperava.
+
+---
+
+## 6. Proves unitàries realitzades
+
+    No s’han implementat proves unitàries específiques.
+---
+
+## 7. Proves creuades realitzades
+
+**Ús dels fitxers `self_testing.md` i `beta_testing.md`**:  
+  Hem documentat exhaustivament els errors menors i detallat totes les proves en aquests fitxers. 
+Això ens ha permès detectar i corregir problemes petits de la interfície, ser més ambiciosos afegint funcionalitats noves 
+(com el Leaderboard i la possibilitat d’eliminar partides) i garantir una experiència d’usuari més sòlida.
+
+---
+
+## 8. Capturas del funcionamiento final de la práctica
+
+1. **Pantalla d’inici / login i registre**  
+   ![Home: Login](../images/home_login.png)
+   ![Home: Registre](../images/home_register.png)
+
+2. **Menú de configuració (Crear/Iniciar/Lideratge/Tancar Sessió)**  
+   ![Configuració: botons](../images/configuracion_menu.png)
+
+3. **Col·locació de vaixells (fase “placement”)**  
+   ![Game: Col·locar vaixells](../images/game_placement.png)
+
+4. **Interfície en fase “playing” (“Your Fleet” i “Enemy Fleet” ocult)**  
+   ![Game: Playing (hit i miss)](../images/game_playing.png)
+
+5. **La partida acaba amb “Game Over” i missatge de guanyador**  
+   ![Game Over: Guanyador](../images/game_over.png)
+
+6. **Llista de partides disponibles (Unir/Eliminar) en “Reanudar partida”**  
+   ![Partides disponibles](../images/partidas_reanudar.png)
+
+7. **Tauler de lideratge (5 millors jugadors amb % victòries)**  
+   ![Leaderboard: Top 5](../images/leaderboard.png)
 
 
-### 2.Resumen de la organización del equipo
+---
 
-Durante la práctica, el equipo se organizó de la siguiente manera:
+## 9. Información de despliegue de la práctica
 
-Joan Josep Lira Casanova se encargó de la implementación del backend, incluyendo la lógica del juego, el manejo de 
-usuarios y la persistencia de datos. Implementó las funcionalidades de registro y autenticación de usuarios, así como la
-creación y gestión de partidas. Además, se encargó del trabajo fuera de laboratorio de la sesion 3, 4 y 5 sobre los 
-serializadores.
+### Backend (Django)
 
-
-Aiman Doul se centró en el desarrollo del frontend, creando la interfaz de usuario y asegurándose de que
-la experiencia del usuario fuera fluida y atractiva. También se encargó de arreglar los errores que surgieron durante
-las pruebas cruzadas, añado la opción de poder unirse a una partida ya creada y de poder eliminar una partida guardada.
-Además, s'encargó de la sesión 2, el tutorial de la sesión 3, la sesion 5 y 6.
-
-
-
-### 3.Descripción de las dificultades encontradas
-
-Durante la práctica, el equipo enfrentó varias dificultades:
-   - La implementación de la lógica del juego fue más compleja de lo esperado, especialmente al manejar los turnos y 
-   las reglas del juego.
-   - La integración entre el frontend y el backend requirió ajustes y pruebas exhaustivas para asegurar que ambas partes 
-   funcionaran correctamente juntas.
-   - La gestión de múltiples partidas y usuarios simultáneos presentó desafíos adicionales en términos de persistencia de datos.
-   - La falta de pruebas unitarias e integración dificultó la identificación de errores y la garantía de la calidad del código.
-   - Cuando rotabas los barcos no se colocaba correctamente en el tablero, lo que requería ajustes en la lógica de colocación.
-
-
-### 4.Pruebas unitarias realizadas
-
-
-### 5.Pruebas cruzadas realizadas
-
-
-### 6.Capturas del funcionamiento final de la práctica
-
-Pantalla de inicio / login y registro.
-Configuración de partida y colocación de barcos.
-Interfaz de juego en fase “playing” (tablero del jugador y del oponente oculto).
-Mensajes de “hit”, “miss” y “Game Over”.
-Lista de partidas disponibles y botón “Unirse” / “Eliminar”.
-
-### 7.Información de despliegue de la práctica
-
-cd Backend:
-Crear el entorno virtual
-Activar el entorno virtual: "C:\Users\hassa\PycharmProjects\pr2-c08\backend\.venv\Scripts\Activate.ps1"
-python manage.py migrate
-pyton manage.py runserver
-
-cd frontend:
-copiar  .env_example a .env
-
-Instala dependencias:
-cd <your-project-name>
-npm install 
-
-Arranca el servidor de desarrollo: npm run dev
+1. Navega a la carpeta `backend/`.
+2. Crear i activar entorn virtual (Windows PowerShell):
+   ```powershell
+   cd C:\Users\hassa\PycharmProjects\pr2-c08\backend
+   .venv\Scripts\Activate.ps1
