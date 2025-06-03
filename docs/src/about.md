@@ -101,7 +101,7 @@ Això ens ha permès detectar i corregir problemes petits de la interfície, ser
    ![Partides disponibles](../images/partidas_reanudar.png)
 
 7. **Tauler de lideratge (5 millors jugadors amb % victòries)**  
-   ![Leaderboard: Top 5](../images/leaderboard.png)
+   ![Leaderboard: Top 2](../images/leaderboard.png)
 
 
 ---
