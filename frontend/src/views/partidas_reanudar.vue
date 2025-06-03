@@ -57,7 +57,7 @@ const volverAConfiguracion = () => {
 
 <template>
   <div class="container mt-5">
-    <h2 class="text-center mb-4">Partidas Disponibles</h2>
+    <h2 class="text-center mb-4">Partidas Disponibles de {{ authStore.username }}</h2>
 
     <div v-if="gameStore.availableGames.length === 0">
       <p class="text-center">No hay partidas disponibles para mostrar.</p>

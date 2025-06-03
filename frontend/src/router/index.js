@@ -3,6 +3,7 @@ import Home from "../views/Home.vue";
 import Game from "../views/Game.vue";
 import Configuracion from "../views/Configuracion.vue";
 import partidas_reanudar from "../views/partidas_reanudar.vue";
+import Leaderboard from "../views/Leaderboard.vue";
 
 import { useAuthStore } from "../store/authStore";
 
@@ -29,6 +30,13 @@ const routes = [
     path: "/partidas_reanudar",
     name: "Partidas_reanudar",
     component: partidas_reanudar,
+    meta: { requiresAuth: true },
+  },
+
+    {
+    path: "/leaderboard",
+    name: "Leaderboard",
+    component: Leaderboard,
     meta: { requiresAuth: true },
   },
 ];

@@ -18,6 +18,7 @@ export const useGameStore = defineStore("game", {
     firing: false, // Indica si se está disparando
     availableGames: [],
     owner: null, // ID del jugador que creó la partida
+    leaderboard: [], // se llenará con { nickname, totalGames, wonGames, score }
   }),
 
   actions: {
@@ -437,6 +438,72 @@ export const useGameStore = defineStore("game", {
         console.error("Error al eliminar partida:", msg);
         throw new Error(msg);
       }
-    }
+    },
+
+    async getLeaderBoard() {
+      try {
+        // 1) Obtener todas las partidas
+        const response = await api.getAllGames();
+        const games = response.data;
+
+        // 2) Construir mapa ID→nickname a partir de extended_status
+        const idToNickname = {};
+        for (const game of games) {
+          const ext = game.extended_status;
+          if (ext) {
+            if (ext.player && ext.player.id) {
+              idToNickname[ext.player.id] = ext.player.username;
+            }
+            if (ext.opponent && ext.opponent.id) {
+              idToNickname[ext.opponent.id] = ext.opponent.username;
+            }
+          }
+        }
+
+        // 3) Acumular stats por nickname
+        const statsMap = {};
+        // 3.1) totalGames como “owner”
+        for (const game of games) {
+          const ownerNickname = game.owner;
+          if (!statsMap[ownerNickname]) {
+            statsMap[ownerNickname] = { totalGames: 0, wonGames: 0 };
+          }
+          statsMap[ownerNickname].totalGames += 1;
+        }
+        // 3.2) wonGames según game.winner (ID→nickname)
+        for (const game of games) {
+          const winnerId = game.winner;
+          if (winnerId !== null) {
+            const winnerNickname = idToNickname[winnerId];
+            if (winnerNickname) {
+              if (!statsMap[winnerNickname]) {
+                statsMap[winnerNickname] = { totalGames: 0, wonGames: 0 };
+              }
+              statsMap[winnerNickname].wonGames += 1;
+            }
+          }
+        }
+
+        // 4) Convertir statsMap a array y calcular score
+        const tempArray = [];
+        for (const [nickname, { totalGames, wonGames }] of Object.entries(statsMap)) {
+          if (totalGames > 0) {
+            tempArray.push({
+              nickname,
+              totalGames,
+              wonGames,
+              score: wonGames / totalGames,
+            });
+          }
+        }
+
+        // 5) Ordenar descendente por score y quedarnos con los 5 primeros
+        tempArray.sort((a, b) => b.score - a.score);
+        this.leaderboard = tempArray.slice(0, 5);
+      } catch (err) {
+        console.error("Error obteniendo leaderboard en el store:", err);
+        throw err; // Lo lanzamos para que el componente lo gestione
+      }
+    },
   },
 });

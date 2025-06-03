@@ -19,6 +19,10 @@ const irAIniciarPartida = () => {
   router.push("/partidas_reanudar");
 };
 
+const leaderBoard = () => {
+  router.push("/leaderboard");
+};
+
 const cerrarSesion = () => {
   authStore.logout();
   router.push("/");
@@ -35,12 +39,14 @@ const cerrarSesion = () => {
     <div class="botones">
       <button class="btn btn-success" @click="irACrearPartida">Crear Partida</button>
       <button class="btn btn-primary" @click="irAIniciarPartida">Iniciar Partida</button>
+      <button class="btn btn-info" @click="leaderBoard">Mejores Jugadores</button>
       <button class="btn btn-danger" @click="cerrarSesion">Cerrar Sesión</button>
     </div>
   </div>
 </template>
 
 <style scoped>
+
 .config-container {
   max-width: 400px;
   margin: 0 auto;
