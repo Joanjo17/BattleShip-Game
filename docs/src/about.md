@@ -111,7 +111,33 @@ Això ens ha permès detectar i corregir problemes petits de la interfície, ser
 ### Backend (Django)
 
 1. Navega a la carpeta `backend/`.
-2. Crear i activar entorn virtual (Windows PowerShell):
+2. Crear i activar entorn virtual:
    ```powershell
-   cd C:\Users\hassa\PycharmProjects\pr2-c08\backend
-   .venv\Scripts\Activate.ps1
+   poetry shell
+    ```
+3. Aplicar migracions:
+    ```bash
+    python manage.py migrate
+    ```
+4. Iniciar servidor de desenvolupament:
+    ```bash
+    python manage.py runserver
+    ```
+
+### Frontend (Vue.js)
+
+1. Navega a la carpeta `frontend/`.
+
+2. Copia i renombra el fitxer d’entorn
+    ```bash
+    cp env_sample .env
+    ```
+3. Instal·la dependències:
+    ```bash
+    npm install
+    ```
+
+4. Inicia servidor de desenvolupament:
+    ```bash
+    npm run dev
+    ```
