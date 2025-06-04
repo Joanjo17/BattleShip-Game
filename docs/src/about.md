@@ -10,82 +10,77 @@
 
 ## 1. Objetivos cumplidos vs no cumplidos
 
-**Objetivos cumplidos:**
-- Registro y autenticación de usuarios.
-- Creación de partidas (single-player contra bot).
-- Posibilidad de colocar barcos y disparar en el tablero, respetando turnos y reglas (hit/miss).
-- El juego finaliza correctamente con detección de ganador.
-- Persistencia de partidas: reanudar y eliminar partidas guardadas.
-- Manejo de múltiples partidas y jugadores simultáneos.
-- Implementación de “Leaderboard” (Tauler de lideratge).
+**Objectius assolits:**
+- Registre i autenticació d’usuaris.
+- Creació de partides (mode individual contra bot).
+- Possibilitat de col·locar vaixells i realitzar dispars, respectant torns i regles (tocat/aigua).
+- Finalització correcta del joc amb detecció del guanyador.
+- Persistència de partides: reanudació i eliminació de partides guardades.
+- Gestió de múltiples partides i jugadors simultanis.
+- Implementació del “Leaderboard” (tauler de lideratge).
 
-**Objetivos no cumplidos:**
-- No se ha implementado el modo multijugador real.
-- No se han creado pruebas unitarias ni de integración para el backend y frontend.
+**Objectius no assolits:**
+- No s’ha implementat el mode multijugador real.
+- No s’han creat proves unitàries ni d’integració per al backend i frontend.
 
 ---
 
-## 2. Resumen de la organización del equipo
+## 2. Organització de l’equip
 
-Durante la pràctica, l’equip es va organitzar de la següent manera:
+Durant la pràctica, l’equip es va organitzar de la següent manera:
 
-- **Joan Josep Lira Casanova**  
+### **Joan Josep Lira Casanova**
   - Implementació del backend.
-  - Definició completa de models: `Player`, `Game`, `Board`, `Vessel`, `BoardVessel`, `Shot`.
-  - Definició completa de vistes: `UserViewSet`, `PlayerViewSet`, `GameViewSet`, `BoardViewSet`, `BoardVesselViewSet`, `ShotViewSet`, `VesselViewSet`.
-  - Definició completa de serializers: `UserSerializer`, `PlayerSerializer`, `GameSerializer`, `BoardSerializer`, `VesselSerializer`, `BoardVesselSerializer`, `ShotSerializer`.
-  - Definició completa de URLs i nested routers per a cada vista.
-  - Serialitzadors i ViewSets per a cadascun, incloent lògica de creació de partides, col·locació de vaixells, gestió de tirades i canvi de fase.  
-  - Integració de Django Signals per a crear automàticament un `Player` quan es registra un `User`.  
-  - Implementació de la lògica de comunicació amb l’API via `api.js`.
-  - Tasques de la sessió 3, 4 i 5: adaptació de serializers, permisos i nested routers.
+  - Definició completa dels models: `Player`, `Game`, `Board`, `Vessel`, `BoardVessel`, `Shot`.
+  - Creació de totes les vistes: `UserViewSet`, `PlayerViewSet`, `GameViewSet`, `BoardViewSet`, `BoardVesselViewSet`, `ShotViewSet`, `VesselViewSet`.
+  - Desenvolupament dels serializers i de tota la lògica d’interacció de joc.
+  - Configuració de les rutes amb nested routers.
+  - Ús de Django Signals per crear un `Player` automàtic en registrar un `User`.
+  - Participació activa en les sessions 3, 4 i 5 (serialització, permisos i rutes).
 
-- **Aiman Doul**   
+### **Aiman Doul**
+  - Codificació inicial de models i serializers.
   - Creació y definició de models: `User`, `Player`, `Game`, `Board`, `BoardVessel`, `Shot`, `Vessel`.
-  - Creació y definició de vistes: `UserViewSet`, `PlayerViewSet`, `GameViewSet`, `BoardViewSet`, `BoardVesselViewSet`, `ShotViewSet`, `VesselViewSet`.
-  - Creació y definició de serializers: `UserSerializer`, `PlayerSerializer`, `GameSerializer`, `BoardSerializer`, `VesselSerializer`, `BoardVesselSerializer`, `ShotSerializer`.
-  - Creació y definició completa de URLs i nested routers per a cada vista.
   - Desenvolupament del frontend.
-  - Creació y modificació de components: `Home.vue` (login/registre), `Configuracion.vue` (menu principal), `Game.vue` (interficie de joc), `partidas_reanudar.vue` (llista de partides disponibles), `Leaderboard.vue` (tauler de lideratge).
-  - Implementació de la lògica de comunicació amb l’API via `api.js`. 
-  - Resolució d’errors en la rotació i col·locació de vaixells, així com en el flux “hit -> nou torn”.  
-  - Sessió 2, tutorial sessió 3, 5 i 6: estructura i estils del frontend, correcció d’errors.
+  - Creació i modificació de components Vue: `Home.vue`, `Configuracion.vue`, `Game.vue`, `partidas_reanudar.vue`, `Leaderboard.vue`.
+  - Gestió de la comunicació amb l’API via `api.js`.
+  - Correcció d’errors de col·locació i rotació de vaixells.
+  - Participació activa en les sessions 2, 3, 5 i 6 centrades en disseny i usabilitat del frontend.
+
 
 ---
 
-## 3. Descripción de las dificultades encontradas
+## 3. Descripción de las dificultades trobades
 
-- La lògica de torns (si un jugador fa “hit”, ha de continuar fins a fallar) va requerir bastants proves i ajustos tant al backend com al frontend.  
-- La integració entre frontend i backend requeria validar esquemes JSON i gestionar errors (per exemple, col·locació fora de límits, tir repetit).  
-- La persistència de l’estat (guardat al `localStorage`) i la recuperació al refresh no funcionava correctament fins que no es va afegir `getGameState(currentGameId)` a `onMounted`.  
-- Gestionar múltiples partides simultànies implicava filtrar correctament per `game_id` i `player_id` als endpoints nested (nested routers).  
-- A l’hora de rotar els vaixells i calcular `rf` i `cf` correctament: calia revisar `isVertical` i ajustos en `isValidPlacement`.  
-- Falten proves unitàries i integració: la manca d’aquestes dificultava la localització d’errors petits i regressions,
-per tant, feiem debug manual y inspecció de les peticions/respostes a l’API per assegurar-nos que tot funcionava com s’esperava.
+- La lògica de torns (un jugador continua si encerta) va requerir diverses iteracions i ajustos tant al backend com al frontend.
+- La validació del format JSON entre frontend i backend va ser crítica, especialment per gestionar errors com col·locacions fora de límits o dispars repetits.
+- La persistència d’estat amb `localStorage` no funcionava bé fins que es va afegir la crida a `getGameState(currentGameId)` dins `onMounted`.
+- Gestionar partides simultànies va requerir fer ús correcte dels `game_id` i `player_id` dins de rutes anidades.
+- Calcular les coordenades finals (`rf`, `cf`) en funció de `isVertical` va generar problemes inicials amb la col·locació.
+- L’absència de proves automàtiques feia que la depuració fos totalment manual i basada en inspecció directa de peticions/respostes API.
 
 ---
 
-## 6. Proves unitàries realitzades
+## 4. Proves unitàries
 
     No s’han implementat proves unitàries específiques.
 ---
 
-## 7. Proves creuades realitzades
+## 5. Proves creuades realitzades
 
 **Ús dels fitxers `self_testing.md` i `beta_testing.md`**:  
-  Hem documentat exhaustivament els errors menors i detallat totes les proves en aquests fitxers. 
-Això ens ha permès detectar i corregir problemes petits de la interfície, ser més ambiciosos afegint funcionalitats noves 
-(com el Leaderboard i la possibilitat d’eliminar partides) i garantir una experiència d’usuari més sòlida.
+Hem documentat exhaustivament els errors menors i detallat totes les proves realitzades.  
+Això ens ha permès detectar i corregir problemes de la interfície, afegir funcionalitats noves (com el Leaderboard o l’eliminació de partides) i garantir una experiència d’usuari més sòlida i robusta.
 
 ---
 
-## 8. Capturas del funcionamiento final de la práctica
+## 6. Captures del funcionament final de la pràctica
 
 1. **Pantalla d’inici / login i registre**  
    ![Home: Login](../images/home_login.png)
    ![Home: Registre](../images/home_register.png)
 
-2. **Menú de configuració (Crear/Iniciar/Lideratge/Tancar Sessió)**  
+2. **Menú de configuració (Crear / Iniciar / Lideratge / Tancar Sessió)** 
    ![Configuració: botons](../images/configuracion_menu.png)
 
 3. **Col·locació de vaixells (fase “placement”)**  
@@ -94,19 +89,19 @@ Això ens ha permès detectar i corregir problemes petits de la interfície, ser
 4. **Interfície en fase “playing” (“Your Fleet” i “Enemy Fleet” ocult)**  
    ![Game: Playing (hit i miss)](../images/game_playing.png)
 
-5. **La partida acaba amb “Game Over” i missatge de guanyador**  
+5. **Partida finalitzada amb “Game Over” i guanyador anunciat**  
    ![Game Over: Guanyador](../images/game_over.png)
 
-6. **Llista de partides disponibles (Unir/Eliminar) en “Reanudar partida”**  
+6. **Reanudació de partides guardades (llista amb opcions)**  
    ![Partides disponibles](../images/partidas_reanudar.png)
 
-7. **Tauler de lideratge (5 millors jugadors amb % victòries)**  
+7. **Leaderboard (top 5 jugadors amb percentatge de victòries)**  
    ![Leaderboard: Top 5](../images/leaderboard.png)
 
 
 ---
 
-## 9. Información de despliegue de la práctica
+## 7. Informació de desplegament
 
 ### Backend (Django)
 
@@ -128,16 +123,16 @@ Això ens ha permès detectar i corregir problemes petits de la interfície, ser
 
 1. Navega a la carpeta `frontend/`.
 
-2. Copia i renombra el fitxer d’entorn
+2. Copia i reanomena el fitxer d’entorn .env
     ```bash
     cp env_sample .env
     ```
-3. Instal·la dependències:
+3. Instal·la les dependències:
     ```bash
     npm install
     ```
 
-4. Inicia servidor de desenvolupament:
+4. Inicia el servidor de desenvolupament:
     ```bash
     npm run dev
     ```

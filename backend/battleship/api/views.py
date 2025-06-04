@@ -11,31 +11,34 @@ from . import serializers
 from .serializers import UserSerializer, PlayerSerializer, GameSerializer, BoardSerializer, BoardVesselSerializer, ShotSerializer, VesselSerializer
 
 
+# Vista per a gestionar usuaris (crear, llistar, consultar).
 class UserViewSet(viewsets.ModelViewSet):
     """
-    This viewset automatically provides `list` and `retrieve` actions.
+    ViewSet para la gestión de usuarios. Solo accesible por administradores,
+    excepto el registro de nuevos usuarios.
     """
     queryset = User.objects.all()
     serializer_class = UserSerializer
     filter_backends = [filters.SearchFilter] # Permite búsquedas en la lista de usuarios
     search_fields = ['username', 'email']
     permission_classes = [permissions.IsAdminUser]
-    # Por defecto, SOLO los administradores pueden acceder a estas vistas (GET, PUT, DELETE, etc.)
 
+    # Permet el registre d'usuaris sense ser administrador
     def get_permissions(self):
-        if self.action == 'create': # Si se trata de un POST (registro de usuario), permitimos acceso a cualquiera
+        if self.action == 'create':
             return [AllowAny()]
-
-        # Para lo demás, se requiere que el usuario sea administrador
+        # Per altres accions, només administradors
         return [IsAdminUser()]
 
 
+# Vista per a gestionar jugadors
 class PlayerViewSet(viewsets.ModelViewSet):
     queryset = Player.objects.all()
     serializer_class = PlayerSerializer
     filter_backends = [filters.SearchFilter]
     search_fields = ['nickname']
 
+    # Si la petició ve d'una URL anidada, afegeix el jugador a la partida i crea el seu tauler
     def perform_create(self, serializer):
         game_id = self.kwargs.get('game_pk')
         if game_id:
@@ -43,10 +46,10 @@ class PlayerViewSet(viewsets.ModelViewSet):
             player = serializer.save()
             game.players.add(player)
             Board.objects.create(game=game, player=player)
-            print(f"🛠️ Board creado para Player {player.id} en Game {game.id}")
         else:
-            serializer.save() # fallback: creación general si no es nested
+            serializer.save()
 
+    # Si ve d'una URL anidada, filtra jugadors per partida
     def get_queryset(self):
         game_id = self.kwargs.get('game_pk')
         if game_id:
@@ -54,6 +57,7 @@ class PlayerViewSet(viewsets.ModelViewSet):
         return Player.objects.all()
 
 
+# Vista per a gestionar partides
 class GameViewSet(viewsets.ModelViewSet):
     queryset = Game.objects.all()
     serializer_class = GameSerializer
@@ -61,42 +65,40 @@ class GameViewSet(viewsets.ModelViewSet):
     search_fields = ['phase']
     ordering_fields = ['id']
 
+    # Quan es crea una partida, s'assigna l'usuari com a propietari i es genera un tauler
     def perform_create(self, serializer):
-        #player = get_object_or_404(Player, user=User.objects.first())  Sustituir con request.user si procede
         player = get_object_or_404(Player, user=self.request.user)
         game = serializer.save(owner=player, phase=Game.PHASE_PLACEMENT, turn=player)
         game.players.add(player)
         Board.objects.create(game=game, player=player)
 
-
+        # Si no és multijugador, s'afegeix automàticament un jugador CPU
         if not game.multiplayer:
             # Crear usuario y jugador CPU si no existen
             cpu_user, _ = User.objects.get_or_create(username="cpu")
-            # obtener el jugador CPU
             cpu_player, _ = Player.objects.get_or_create(user=cpu_user, defaults={"nickname": "cpu"})
             game.players.add(cpu_player)
             Board.objects.get_or_create(game=game, player=cpu_player)
-            print(f"🤖 Jugador CPU añadido con ID {cpu_player.id} a la partida {game.id}")
 
-        print(f"🛠️ Board creado para el propietario {player.id} y CPU en la partida {game.id}")
-
+    # Només el propietari pot eliminar una partida
     def destroy(self, request, *args, **kwargs):
         game = self.get_object()
         if game.owner.user != request.user:
-            raise PermissionDenied("Solo el propietario puede eliminar esta partida.")
+            raise PermissionDenied("Només el propietari pot eliminar aquesta partida.")
         return super().destroy(request, *args, **kwargs)
 
+
+# Vista per a consultar taulers associats a jugadors dins d’una partida
 class BoardViewSet(viewsets.ModelViewSet):
     serializer_class = BoardSerializer
 
     def get_queryset(self):
         game_id = self.kwargs.get('game_pk')
         player_id = self.kwargs.get('player_pk')
-        qs = Board.objects.filter(game__id=game_id, player__id=player_id)
-        print(f"📋 Buscando boards para Game={game_id}, Player={player_id} → {qs.count()} encontrados")
-        return qs
+        return Board.objects.filter(game__id=game_id, player__id=player_id)
 
 
+# Vista per a gestionar la col·locació de vaixells al tauler
 class BoardVesselViewSet(viewsets.ModelViewSet):
     serializer_class = BoardVesselSerializer
 
@@ -108,10 +110,8 @@ class BoardVesselViewSet(viewsets.ModelViewSet):
     def create(self, request, *args, **kwargs):
         game_id = self.kwargs.get('game_pk')
         player_id = self.kwargs.get('player_pk')
-        print("BoardVessel | 🔍 Buscando board...")
 
         board = get_object_or_404(Board, game_id=game_id, player_id=player_id)
-        print("BoardVessel | ✅ Board encontrado:", board.id)
 
         # Inserta el board manualmente en los datos del request
         data = request.data.copy()
@@ -120,29 +120,28 @@ class BoardVesselViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(data=data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
-        print("BoardVessel | 🚢 Barco guardado correctamente.")
 
-        # Verificar si se han colocado todos los barcos
+        # Comprovar si el jugador ha col·locat tots els vaixells
         total_placed = BoardVessel.objects.filter(board=board).count()
         expected = Vessel.objects.count()
 
         if total_placed == expected:
             board.prepared = True
             board.save()
-            print(f"BoardVessel | 🟢 Board {board.id} marcado como preparado.")
 
             game = board.game
             game.refresh_from_db()
-            # Si todos los boards del juego están preparados, pasar a "playing"
+
+            # Si tots els jugadors han preparat el tauler, canviar a fase de joc ("playing")
             all_prepared = all(b.prepared for b in game.boards.all())
             if all_prepared:
                 game.phase = Game.PHASE_PLAYING
                 game.save()
-                print(f"🎮 Game {game.id} cambiado a fase 'playing'")
 
         return Response(serializer.data, status=201)
 
 
+# Vista per a consultar o assegurar els vaixells disponibles al joc
 class VesselViewSet(viewsets.ModelViewSet):
     queryset = Vessel.objects.all()
     serializer_class = VesselSerializer
@@ -151,6 +150,7 @@ class VesselViewSet(viewsets.ModelViewSet):
         self.ensure_default_vessels()
         return super().get_queryset()
 
+    # Assegura que hi hagi un conjunt de vaixells definits per defecte
     def ensure_default_vessels(self):
         default_vessels = [
             {"id": 1, "size": 1, "name": "Patrol Boat",
@@ -173,6 +173,7 @@ class VesselViewSet(viewsets.ModelViewSet):
             )
 
 
+# Vista per gestionar dispars durant la partida
 class ShotViewSet(viewsets.ModelViewSet):
     serializer_class = ShotSerializer
 
@@ -182,7 +183,7 @@ class ShotViewSet(viewsets.ModelViewSet):
         return Shot.objects.filter(game_id=game_id, player_id=player_id)
 
     def get_vessel_cells(self, vessel):
-        """Devuelve todas las celdas (tuplas) que ocupa un barco."""
+        """Retorna totes les cel·les ocupades pel vaixell."""
         cells = []
         if vessel.ri == vessel.rf:  # Horizontal
             for col in range(vessel.ci, vessel.cf + 1):
@@ -193,18 +194,13 @@ class ShotViewSet(viewsets.ModelViewSet):
         return cells
 
     def perform_create(self, serializer):
-        print("ShotViewSet | 🔫 Procesando disparo...")
         game_id = self.kwargs.get('game_pk')
         player_id = self.kwargs.get('player_pk')
         game = get_object_or_404(Game, pk=game_id)
         player = get_object_or_404(Player, pk=player_id)
 
-        print("📌 ESTADO INICIAL DEL DISPARO")
-        print(f"🔍 Game {game.id} | Phase: {game.phase} | Turn ID: {game.turn_id} | Winner: {game.winner_id}")
-        print(f"🎯 Dispara el jugador: {player.id} ({player.nickname})")
-
         if game.turn_id != player.id:
-            raise ValidationError("No es tu turno.")
+            raise ValidationError("No és el teu torn.")
 
         row = self.request.data.get('row')
         col = self.request.data.get('col')
@@ -212,32 +208,27 @@ class ShotViewSet(viewsets.ModelViewSet):
             row = int(row)
             col = int(col)
         except (TypeError, ValueError):
-            raise ValidationError("Coordenadas inválidas.")
+            raise ValidationError("Coordenades no vàlides.")
 
-        # Buscar el board del oponente
+        # Obtenir el tauler de l'oponent
         opponent_board = Board.objects.filter(game=game).exclude(player=player).first()
         if not opponent_board:
-            raise ValidationError("No se encontró el tablero del oponente.")
+            raise ValidationError("No s'ha trobat el tauler de l'oponent.")
 
-        print("📨 Data recibida para disparo:", self.request.data)
-        print("📨 Jugador:", player.id, "Tablero del oponente:", opponent_board.id)
-
-        # Validar celda disparada (por seguridad, ya lo hace el frontend)
+        # Verificar que no s'hagi disparat ja a aquesta cel·la
         if Shot.objects.filter(board=opponent_board, row=row, col=col).exists():
-            raise ValidationError("Ya se disparó en esta celda.")
+            raise ValidationError("Ja s'ha disparat a aquesta cel·la.")
 
         # Buscar si alguna celda de un barco activo coincide
+        # Determinar si el dispar ha impactat
         vessels = BoardVessel.objects.filter(board=opponent_board, alive=True)
-        hit_vessel = None
-        for vessel in vessels:
-            if (row, col) in self.get_vessel_cells(vessel):
-                hit_vessel = vessel
-                break
+        hit_vessel = next(
+            (v for v in vessels if (row, col) in self.get_vessel_cells(v)), None
+        )
 
         result = 1 if hit_vessel else 0
-        print(f"🔫 Resultado: {'Impacto' if hit_vessel else 'Agua'}")
 
-        # Guardar el disparo
+        # Registrar el dispar
         serializer.save(
             game=game,
             player=player,
@@ -248,7 +239,7 @@ class ShotViewSet(viewsets.ModelViewSet):
             impact=hit_vessel if hit_vessel else None,
         )
 
-        # Si se ha impactado, verificar si se ha hundido completamente
+        # Verificar si el vaixell ha estat completament enfonsat
         if hit_vessel:
             vessel_cells = self.get_vessel_cells(hit_vessel)
             impacted_cells = Shot.objects.filter(
@@ -260,18 +251,15 @@ class ShotViewSet(viewsets.ModelViewSet):
             if all(cell in impacted_set for cell in vessel_cells):
                 hit_vessel.alive = False
                 hit_vessel.save()
-                print(f"🚢 Barco {hit_vessel.id} hundido.")
 
-        # Comprobar si ya no quedan barcos vivos
+        # Comprovar si la partida ha acabat
         remaining = BoardVessel.objects.filter(board=opponent_board, alive=True).count()
         if remaining == 0:
             game.phase = Game.PHASE_GAMEOVER
             game.winner = player
-            print(f"🏆 Partida terminada. Ganador: {player.nickname} (ID {player.id})")
-        elif result == 0: # Solo si no ha habido impacto, cambiar turno
+        elif result == 0:
+            # Si no hi ha impacte, canvia el torn
             next_player = game.players.exclude(pk=player.id).first()
             game.turn = next_player
-            print(f"🔄 Próximo turno: Jugador {next_player.id} ({next_player.nickname})")
-            print(f"⏳ Barcos restantes del oponente: {remaining}")
 
         game.save()
