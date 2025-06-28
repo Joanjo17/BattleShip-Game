@@ -4,21 +4,29 @@ import api from "../services/api";
 
 export const useGameStore = defineStore("game", {
   state: () => ({
-    gamePhase: "waiting",
-    gameStatus: "Waiting for players",
-    playerBoard: [],
-    opponentBoard: [],
-    playerPlacedShips: [],
-    opponentShips: [],
-    availableShips: [],
+    gamePhase: "waiting",   // Fase actual: "waiting", "placement", "playing" o "gameOver"
+    gameStatus: "Waiting for players",  // Mensaje de estado que se mostrará en UI
+    playerBoard: [],  // Matriz 10×10 del tablero del jugador
+    opponentBoard: [], // Matriz 10×10 del tablero del oponente (CPU)
+    playerPlacedShips: [], // Lista de barcos colocados por el jugador
+    opponentShips: [],  // Lista de barcos colocados por el CPU
+    availableShips: [], // Barcos que aún quedan por colocar (durante “placement”)
     selectedShip: -1, // ID del barco seleccionado para colocar
-    playersInGame: [],
+    playersInGame: [],  // Lista de jugadores presentes en la partida actual
     currentGameId: -1, // ID de la partida actual
     turnId: -1, // ID del jugador cuyo turno es
     firing: false, // Indica si se está disparando
+    availableGames: [],  // Array de partidas disponibles (para “reanudar partida”)
+    owner: null, // ID del jugador que creó la partida
+    leaderboard: [], // se llenará con { nickname, totalGames, wonGames, score }
   }),
 
   actions: {
+
+    /**
+     * Obtener información de un usuario a partir de su ID.
+     * Usa la función api.getUser() que retorna los datos JSON del backend.
+     */
     getUser(id) {
       return api
         .getUser(id)
@@ -30,6 +38,11 @@ export const useGameStore = defineStore("game", {
           throw new Error(message);
         });
     },
+
+    /**
+     * Carga la lista de jugadores que ya están en una partida concreta.
+     * Se llama tras crear la partida y en getGameState().
+     */
     async loadPlayersInGame(gameId) {
       try {
         const response = await api.getPlayersInGame(gameId);
@@ -41,13 +54,22 @@ export const useGameStore = defineStore("game", {
       }
     },
 
-
+    /**
+     * Recupera el estado completo de la partida (tableros, barcos, fase, turno, etc.).
+     * - Guarda currentGameId en localStorage para restaurar tras refresh.
+     * - Asigna 'owner' según la respuesta JSON del backend.
+     * - Extrae 'extended_status' para jugador (player) y CPU (opponent).
+     * - Actualiza state: playerBoard, opponentBoard, playerPlacedShips, opponentShips.
+     * - Si fase = "gameOver", muestra el ganador.
+     * - Si fase != "playing" y el jugador actual ya está preparado, hace polling con setTimeout().
+     */
     async getGameState(gameId) {
       try {
         this.currentGameId = gameId;
         localStorage.setItem("currentGameId", gameId);
         const response = await api.getGameState(gameId);
         const gameData = response.data;
+        this.owner = response.data.owner; // Guardar el propietario de la partida
 
         console.log("Datos completos del backend:", gameData);
         const player = gameData.extended_status.player;
@@ -107,6 +129,10 @@ export const useGameStore = defineStore("game", {
       }
     },
 
+    /**
+     * Crea un tablero vacío 10×10 inicializado a 0.
+     * Se usa en startNewGame() para inicializar playerBoard y opponentBoard.
+     */
     createEmptyBoard() {
       return Array(10)
         .fill()
@@ -114,6 +140,15 @@ export const useGameStore = defineStore("game", {
     },
 
 
+    /**
+     * Inicia una nueva partida:
+     * - Cambiamos fase a "placement" y reseteamos tableros y listas de barcos.
+     * - Llamamos a api.createGame() para crear la partida en el backend.
+     * - Guardamos currentGameId en localStorage y cargamos jugadores actuales.
+     * - Obtenemos la llista de vaixells disponibles i les assignem a availableShips.
+     * - Usem placeOpponentShips() per col·locar automàticament els vaixells del CPU.
+     * - Finalment, cridem getGameState() per actualitzar l’estat complet.
+     */
     async startNewGame() {
       this.gamePhase = "placement";
       this.gameStatus = "Place your ships";
@@ -157,6 +192,12 @@ export const useGameStore = defineStore("game", {
         console.error("Detalles:", error.response?.data);
       }
     },
+
+    /**
+     * Col·loca aleatòriament els vaixells del CPU i desa cada posició en el backend amb placeVessel().
+     * - Recupera jugador CPU de playersInGame (nickname === "cpu").
+     * - Genera coordenades aleatòries fins a trobar una posició vàlida (usant isValidPlacement).
+     */
     async placeOpponentShips() {
       console.log("⛴️ Colocando barcos del bot y guardando en el backend...");
       const cpuPlayer = this.playersInGame.find(p => p.nickname === "cpu");
@@ -201,6 +242,12 @@ export const useGameStore = defineStore("game", {
       }
     },
 
+    /**
+     * Dibuixa un vaixell al tauler local en funció de si és vertical o horitzontal.
+     * - 'board' és la matriu 10×10.
+     * - 'row', 'col' és la cantonada inicial; 'size' longitud; 'type' ID del vaixell.
+     * - Si isVertical=true, incrementa la fila; sinó, incrementa la columna.
+     */
     placeShip(board, row, col, size, isVertical, type) {
       for (let i = 0; i < size; i++) {
         const r = isVertical ? row + i : row;
@@ -209,6 +256,10 @@ export const useGameStore = defineStore("game", {
       }
     },
 
+    /**
+     * Valida si un vaixell pot col·locar-se en la posició indicada sense sortir
+     * del tauler ni sobreposar-se a un altre vaixell.
+     */
     isValidPlacement(board, row, col, size, isVertical) {
       const inBounds = isVertical ? row + size <= 10 : col + size <= 10;
       if (!inBounds) return false;
@@ -221,15 +272,27 @@ export const useGameStore = defineStore("game", {
       return true;
     },
 
+    /**
+     * Guarda el vaixell 'ship' com a objecte seleccionat amb isVertical.
+     * Després el frontend usarà selectShip() per marcar-lo i mostrar-ho a Pantalla.
+     */
     selectShip(ship) {
       this.selectedShip = { ...ship };
     },
 
+    /**
+     * Gira el vaixell seleccionat (canvia isVertical de true a false o invers).
+     */
     rotateSelectedShip() {
       if (this.selectedShip) {
         this.selectedShip.isVertical = !this.selectedShip.isVertical;
       }
     },
+
+    /**
+     * Donada la cantonada inicial (row, col), la mida i orientació,
+     * retorna 'rf' (row final) i 'cf' (col final).
+     */
     getShipEndCoords(row, col, size, isVertical) {
       return {
         rf: isVertical ? row + size - 1 : row,
@@ -237,6 +300,13 @@ export const useGameStore = defineStore("game", {
       };
     },
 
+    /**
+     * Manejador quan l’usuari fa clic sobre el seu propi tauler (fase “placement”).
+     * - Si no és fase “placement” o no hi ha barco seleccionat, surt.
+     * - Valida la col·locació localment i duplica el vaixell al backend.
+     * - Actualitza `playerPlacedShips`, `availableShips` i, quan ja no queden vaixells,
+     *   invoca getGameState() per actualitzar l’estat de la partida.
+     */
     async handlePlayerBoardClick(row, col) {
       if (this.gamePhase !== "placement" || !this.selectedShip) return;
 
@@ -297,6 +367,14 @@ export const useGameStore = defineStore("game", {
       }
     },
 
+    /**
+     * Manejador quan l’usuari fa clic sobre el tauler de l’oponent (fase “playing”).
+     * - Valida que sigui fase “playing” i que no estigui processant un altre disparo.
+     * - No accepta clics si ja hi ha un disparo a aquesta casella (hit o miss).
+     * - Envia la petició fireShot() i actualitza localment tauler i gameStatus.
+     * - Després de disparar, fa getGameState() per refrescar. Si la partida no acaba,
+     *   invoca opponentTurn() perquè el CPU jugui.
+     */
     async handleOpponentBoardClick(row, col) {
       //Debugging
       console.log("📤 Jugador intentando disparar...");
@@ -356,6 +434,13 @@ export const useGameStore = defineStore("game", {
       }
 
     },
+
+    /**
+     * Lògica del torn del CPU:
+     * - Mentre el CPU encerti (‘result === 1’) i no sigui ‘gameOver’ i sigui el seu torn,
+     *   es generen coordenades aleatòries vàlides, es fa fireShot() i després getGameState().
+     * - Si hi ha impacte, el CPU continua jugant; si falla, passa el torn al jugador.
+     */
     async opponentTurn() {
       if (this.gamePhase === "gameOver") {
         return
@@ -410,6 +495,118 @@ export const useGameStore = defineStore("game", {
           break;
         }
       }
-    }
+    },
+
+    /**
+     * Obtiene la llista de partides disponibles cridant a api.getAllGames().
+     * Desa el resultat en availableGames per mostrar la vista “Reanudar partida”.
+     */
+    async fetchAvailableGames() {
+      try {
+        const response = await api.getAllGames();
+        this.availableGames = response.data;
+
+        console.log("📦 Partidas disponibles:", this.availableGames);
+      } catch (error) {
+        const message = error.response?.data?.detail || error.message;
+        console.error("Error al obtener partidas disponibles:", message);
+        this.availableGames = [];
+      }
+    },
+
+    /**
+     * Elimina una partida mitjançant l’endpoint 'api.deleteGame(gameId)' i
+     * refresca la llista de partides cridant a fetchAvailableGames().
+     * Llança excepció en cas d’error perquè ho gestioni el component.
+     */
+    async deleteGame(gameId) {
+      try {
+        await api.deleteGame(gameId);
+        console.log(`🗑️ Partida ${gameId} eliminada.`);
+        await this.fetchAvailableGames();
+      } catch (error) {
+        const msg = error.response?.data?.detail || error.message;
+        console.error("Error al eliminar partida:", msg);
+        throw new Error(msg);
+      }
+    },
+
+    /**
+     * Obté el “Leaderboard”:
+     * 1) Crida a api.getAllGames() per obtenir totes les partides.
+     * 2) Construeix un mapa d’ID de jugador -> nickname a partir de 'extended_status'.
+     * 3) Comptabilitza, per a cada nickname:
+     *    - 'totalGames': com a “owner” de la partida.
+     *    - 'wonGames': si apareix com a 'winner' en la resposta.
+     * 4) Converteix aquest mapa en un array d’objectes { nickname, totalGames, wonGames, score } on 'score = wonGames/totalGames'.
+     * 5) Ordena descendent per 'score' i desa els 5 primers a 'this.leaderboard'.
+     *
+     * En cas d’error, es llancen perquè ho gestioni el component.
+     */
+    async getLeaderBoard() {
+      try {
+        // 1) Obtener todas las partidas
+        const response = await api.getAllGames();
+        const games = response.data;
+
+        // 2) Construir mapa ID→nickname a partir de extended_status
+        const idToNickname = {};
+        for (const game of games) {
+          const ext = game.extended_status;
+          if (ext) {
+            if (ext.player && ext.player.id) {
+              idToNickname[ext.player.id] = ext.player.username;
+            }
+            if (ext.opponent && ext.opponent.id) {
+              idToNickname[ext.opponent.id] = ext.opponent.username;
+            }
+          }
+        }
+
+        // 3) Acumular stats por nickname
+        const statsMap = {};
+        // 3.1) totalGames como “owner”
+        for (const game of games) {
+          const ownerNickname = game.owner;
+          if (!statsMap[ownerNickname]) {
+            statsMap[ownerNickname] = { totalGames: 0, wonGames: 0 };
+          }
+          statsMap[ownerNickname].totalGames += 1;
+        }
+        // 3.2) wonGames según game.winner (ID→nickname)
+        for (const game of games) {
+          const winnerId = game.winner;
+          if (winnerId !== null) {
+            const winnerNickname = idToNickname[winnerId];
+            if (winnerNickname) {
+              if (!statsMap[winnerNickname]) {
+                statsMap[winnerNickname] = { totalGames: 0, wonGames: 0 };
+              }
+              statsMap[winnerNickname].wonGames += 1;
+            }
+          }
+        }
+
+        // 4) Convertir statsMap a array y calcular score
+        const tempArray = [];
+        for (const [nickname, { totalGames, wonGames }] of Object.entries(statsMap)) {
+          if (totalGames > 0) {
+            tempArray.push({
+              nickname,
+              totalGames,
+              wonGames,
+              score: wonGames / totalGames,
+            });
+          }
+        }
+
+        // 5) Ordenar descendente por score y quedarnos con los 5 primeros
+        tempArray.sort((a, b) => b.score - a.score);
+        this.leaderboard = tempArray.slice(0, 5);
+      } catch (err) {
+        console.error("Error obteniendo leaderboard en el store:", err);
+        throw err; // Lo lanzamos para que el componente lo gestione
+      }
+    },
   },
 });

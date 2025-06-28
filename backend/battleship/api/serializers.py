@@ -8,15 +8,13 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['username', 'email', 'password']
         extra_kwargs = {
-            'password': {'write_only': True}  # La contraseña solo se usará para entrada (no se mostrará al serializar)
+            'password': {'write_only': True}  # La contraseña solo se usará para entrada
         }
-        # exclude = ('password',)
 
     def create(self, validated_data):
         # Cuando se llama a serializer.save(), este se ejecuta en registros nuevos
-        # En lugar de usar `User(**validated_data)` + `set_password()`, usamos:
+        # # Crea un usuario utilizando el metodo propio de Django que aplica hash a la contraseña
         return User.objects.create_user(**validated_data)
-        # Esto se encarga de: validar, hashear contraseña, y aplicar configuraciones por defecto como is_active=True
 
 
 class PlayerSerializer(serializers.ModelSerializer):
@@ -45,14 +43,13 @@ class GameSerializer(serializers.ModelSerializer):
 
         def get_player_status(player):
             board = Board.objects.filter(game=obj, player=player).first()
-            print(f"📦 Board obtenido para player {player.nickname} (ID {player.id}) en game {obj.id}: Board ID {board.id if board else 'None'}")
             vessels = BoardVessel.objects.filter(board=board).select_related("vessel")
-            print(f"🚢 Barcos encontrados en Board {board if board else 'None'}: {[v.vessel.id for v in vessels]}")
+
             width, height = obj.width, obj.height
             board_matrix = [[0 for _ in range(width)] for _ in range(height)]
             placed_ships = []
 
-           # Añadir los barcos al tablero
+            # Añadir barcos colocados al tablero
             for bv in vessels:
                 ship_type = bv.vessel.id
                 ship_size = bv.vessel.size
@@ -69,26 +66,22 @@ class GameSerializer(serializers.ModelSerializer):
                 for i in range(ship_size):
                     r = bv.ri + i if is_vertical else bv.ri
                     c = bv.ci if is_vertical else bv.ci + i
-                    try:
-                        board_matrix[r][c] = ship_type
-                    except IndexError:
-                        # Esto solo pasa si se cuela un barco fuera por error
-                        print(f"Posición inválida en backend para {player.nickname}: ({r}, {c})")
+                    board_matrix[r][c] = ship_type
 
             # Añadir disparos al tablero
             shots = Shot.objects.filter(board=board)
             for shot in shots:
                 r, c = shot.row, shot.col
                 # Verificar que las coordenadas están dentro del tablero
-                # (por si acaso eh, lo hace el frontend ya)
                 if 0 <= r < height and 0 <= c < width:
                     if shot.result == 1:
-                        # HIT: marcar con negativo del tipo de barco si hay impacto
+                        # Impacto: marcar con valor negativo del tipo de barco
                         board_matrix[r][c] = -board_matrix[r][c]
                     else:
                         # Agua: marcar como 11
                         board_matrix[r][c] = 11
 
+            # Calcular barcos restantes por colocar
             all_vessels = Vessel.objects.all()
             placed_types = {s["type"] for s in placed_ships}
             available_ships = [
@@ -138,9 +131,9 @@ class ShotSerializer(serializers.ModelSerializer):
         model = Shot
         fields = '__all__'
         extra_kwargs = {
-            'result': {'required': False},#indica si es un impacto o agua
+            'result': {'required': False}, # Indica si el disparo fue impacto o agua
             'board': {'required': False},
             'player': {'required': False},
             'game': {'required': False},
-            'impact': {'required': False}, #identificar barco impactado
+            'impact': {'required': False}, # Barco impactado
         }

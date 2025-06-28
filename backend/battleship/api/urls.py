@@ -6,37 +6,29 @@ from .views import PlayerViewSet, GameViewSet, BoardViewSet, BoardVesselViewSet,
 
 # Create a router and register our ViewSets with it.
 router = DefaultRouter()
-
 router.register(r'user', views.UserViewSet, basename='user')
-
 router.register(r'players', PlayerViewSet)
 router.register(r'games', GameViewSet)
+router.register(r'vessels', VesselViewSet)
 
-# /games/{game_id}/players/
+# Subrutas: /games/{game_id}/players/
 players_router = NestedSimpleRouter(router, r'games', lookup='game')
 players_router.register(r'players', PlayerViewSet, basename='game-players')
 
-# /games/{game_id}/players/{player_id}/vessels/
+# Subrutas: /games/{game_id}/players/{player_id}/vessels/
 vessels_router = NestedSimpleRouter(players_router, r'players', lookup='player')
 vessels_router.register(r'vessels', BoardVesselViewSet, basename='game-player-vessels')
 
-
-# router.register(r'boards', BoardViewSet)
-
-# En urls.py:
+# Subrutas: /games/{game_id}/players/{player_id}/boards/
 boards_router = NestedSimpleRouter(players_router, r'players', lookup='player')
 boards_router.register(r'boards', BoardViewSet, basename='game-player-boards')
 
-router.register(r'vessels', VesselViewSet)
-
-#router.register(r'board-vessels', BoardVesselViewSet)
-#router.register(r'shots', ShotViewSet)
-
-# En urls.py:
+# Subrutas: /games/{game_id}/players/{player_id}/shots/
 shots_router = NestedSimpleRouter(players_router, r'players', lookup='player')
 shots_router.register(r'shots', ShotViewSet, basename='game-player-shots')
 
 
+# Todas las rutas registradas en la API
 urlpatterns = [
     path("", include(router.urls)),
     path("", include(players_router.urls)),

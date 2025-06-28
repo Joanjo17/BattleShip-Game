@@ -4,11 +4,14 @@ import { useGameStore } from "../store";
 import { useAuthStore } from "../store/authStore";
 import GameBoard from "../components/GameBoard.vue";
 import DockingArea from "../components/DockingArea.vue";
-// import { ref } from "vue";
-// import api from "../services/api";
 
+import { useRouter } from 'vue-router';
+// import { ref } from "vue";
+// import api from "../services/api";'
 const store = useGameStore();
 const authStore = useAuthStore();
+
+const router = useRouter();
 
 // const user = ref(null);
 
@@ -25,12 +28,14 @@ const authStore = useAuthStore();
 //   console.log(user.value);
 // }
 
-onMounted( async () => {
-  // To start a new game, uncomment the line below
-   //store.startNewGame();
-  // To fetch the game state, uncomment the line below
-   //store.getGameState("76");
-  // getUsers();
+
+/**
+ * Al montar el componente, comprueba si existe un 'currentGameId' en localStorage.
+ * Si existe, intenta restaurar el estado de la partida mediante 'getGameState(id)'.
+ * - Si tiene éxito, muestra en consola “Partida restaurada ...”.
+ * - Si falla (por ejemplo, la partida ya no existe), borra 'currentGameId'.
+ */
+onMounted(async () => {
   const savedGameId = localStorage.getItem("currentGameId");
 
   if (savedGameId) {
@@ -44,12 +49,11 @@ onMounted( async () => {
   }
 });
 
-const onLogout = () => {
-  if (confirm("Are you sure you want to log out?")) {
-    authStore.logout();
-    window.location.href = "/";
-  }
+
+const volverAConfiguracion = () => {
+  router.go(-1); // vuelve una página atrás en el historial
 };
+
 </script>
 
 <template>
@@ -57,8 +61,8 @@ const onLogout = () => {
   <div class="container-fluid">
     <h1 class="text-center my-2">
       Battleship (Hello: {{ authStore.username }})
-      <button class="btn btn-sm btn-outline-danger ms-2" @click="onLogout">
-        Logout
+      <button class="btn btn-sm btn-outline-danger ms-2" @click="volverAConfiguracion">
+        Volver a Configuración
       </button>
     </h1>
     <div class="row">
