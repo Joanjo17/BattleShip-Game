@@ -1,12 +1,44 @@
-[![Review Assignment Due Date](https://classroom.github.com/assets/deadline-readme-button-22041afd0340ce965d47ae6ef1cefeee28c7c493a6346c4f15d667ab976d596c.svg)](https://classroom.github.com/a/diHjdyim)
-# Plantilla Pràctica 2 Software Distribuït 2025
+# Battleship – Aplicación distribuida con Django y Vue
 
-En aquest projecte trobareu el codi base per a la pràctica 2. Veureu que teniu clarament diferenciada la part de **backend** i la del **frontend**. Així mateix, també teniu l'estructura bàsica per generar la documentació de la pràctica.
+Este proyecto es una aplicación web del juego *Battleship*, diseñada como un sistema distribuido con separación entre frontend y backend.
 
-En [l'enunciat de la pràctica](https://github.com/SoftwareDistribuitUB-2025/Enunciat_P2) teniu guies per generar un projecte bàsic tant per a la part de backend com de frontend. En aquest projecte ja us donem aquesta part feta, per facilitar una estructura comuna.
+## 🧠 Objetivos del proyecto
 
+- Desarrollar una API REST robusta con autenticación basada en JWT.
+- Implementar un frontend SPA moderno con Vue.
+- Gestionar partidas, jugadores y estado del juego mediante modelos relacionados y rutas anidadas.
+- Generar documentación automática del backend con OpenAPI (drf-spectacular).
 
+## ⚙️ Tecnologías utilizadas
 
+### Backend (Python)
+- Django · Django REST Framework
+- JWT (djangorestframework-simplejwt)
+- drf-spectacular · CORS headers · Ruteo anidado
 
- 
+### Frontend (JavaScript)
+- Vue 3 · Pinia · Vue Router · Axios · Vite
+- HTML5 · CSS3
 
+## 🌐 Arquitectura
+
+El proyecto sigue una arquitectura cliente-servidor clásica:
+
+- El **backend** expone una API REST para gestionar usuarios, partidas y movimientos.
+- El **frontend** consume dicha API y proporciona una interfaz dinámica y responsiva para jugar.
+
+## 📄 Documentación de la API
+
+La documentación OpenAPI se genera automáticamente y puede consultarse aquí:
+
+https://softwaredistribuitub-2025.github.io/pr2-c08/
+
+## 📁 Estructura del repositorio
+
+- `backend/` → Código Python con Django
+- `frontend/` → Aplicación Vue 3
+- `README.md` → Documentación del proyecto
+
+## 👨‍💻 Desarrolladores
+
+Proyecto desarrollado en el marco de la asignatura de *Software Distribuido* del Grado en Ingeniería Informática (UB).
